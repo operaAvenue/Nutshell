@@ -5,6 +5,7 @@ import ESP32Visualizer from './ESP32Visualizer';
 import PinController from './PinController';
 import NodeMonitor from './NodeMonitor';
 import FirmwareExporter from './FirmwareExporter';
+import OtaUpdate from './OtaUpdate';
 import LogConsole from './LogConsole';
 import { 
   Sliders, 
@@ -19,7 +20,8 @@ import {
   Maximize2,
   ChevronRight,
   Tv,
-  Network
+  Network,
+  CloudDownload
 } from 'lucide-react';
 
 import { MQTTSettings } from '../types';
@@ -30,7 +32,7 @@ export default function AdminDashboard() {
   const [wifiSettings, setWifiSettings] = useState<WiFiSettings>(DEFAULT_WIFI_SETTINGS);
   const [mqttSettings, setMqttSettings] = useState<MQTTSettings>({ server: '', port: 1883, user: '', pass: '' });
   const [nodes, setNodes] = useState<ESP32Node[]>(INITIAL_NODES);
-  const [activeTab, setActiveTab] = useState<'CONTROLS' | 'MESH' | 'FIRMWARE' | 'MQTT'>('CONTROLS');
+  const [activeTab, setActiveTab] = useState<'CONTROLS' | 'MESH' | 'FIRMWARE' | 'MQTT' | 'OTA'>('CONTROLS');
   const [mobileDashboardView, setMobileDashboardView] = useState<'VISUAL' | 'CONTROLS'>('VISUAL');
   
   // Simulated logs buffer
@@ -414,7 +416,7 @@ export default function AdminDashboard() {
             )}
 
             {/* TAB SELECTOR NAV */}
-            <nav className="grid grid-cols-4 gap-1 p-1 bg-[#1A1D27] rounded-2xl border border-white/5 mb-5 select-none">
+            <nav className="grid grid-cols-5 gap-1 p-1 bg-[#1A1D27] rounded-2xl border border-white/5 mb-5 select-none">
               <button 
                 onClick={() => setActiveTab('CONTROLS')}
                 className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
@@ -461,6 +463,18 @@ export default function AdminDashboard() {
               >
                 <FileCode className="w-4 h-4" />
                 <span className="text-[8.5px] font-mono whitespace-nowrap">C++ Code</span>
+              </button>
+
+              <button 
+                onClick={() => setActiveTab('OTA')}
+                className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                  activeTab === 'OTA' 
+                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]' 
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                }`}
+              >
+                <CloudDownload className="w-4 h-4" />
+                <span className="text-[8.5px] font-mono whitespace-nowrap">OTA</span>
               </button>
             </nav>
 
@@ -587,6 +601,13 @@ export default function AdminDashboard() {
                 <FirmwareExporter 
                   pins={pins}
                   wifiSettings={wifiSettings}
+                  nodes={nodes}
+                  onAddLog={addLog}
+                />
+              )}
+
+              {activeTab === 'OTA' && (
+                <OtaUpdate 
                   nodes={nodes}
                   onAddLog={addLog}
                 />

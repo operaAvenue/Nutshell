@@ -7,6 +7,10 @@
 #include <Preferences.h>
 #include <PubSubClient.h>
 #include <vector>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
+
+#define FIRMWARE_VERSION "v1.0.0"
 
 // Default network credentials
 const char* DEFAULT_WIFI_SSID = "YOUR_WIFI_SSID";
@@ -31,6 +35,10 @@ String macStr = "";
 
 bool shouldRestart = false;
 unsigned long restartTime = 0;
+
+bool shouldUpdateOta = false;
+String otaFirmwareUrl = "";
+String otaFsUrl = "";
 
 struct PinState {
   int gpio;
@@ -299,6 +307,22 @@ void setup() {
   });
 
   server.on("/api/auth", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(204);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    request->send(response);
+  });
+
+  server.on("/api/version", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(204);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    request->send(response);
+  });
+
+  server.on("/api/update", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
     AsyncWebServerResponse *response = request->beginResponse(204);
     response->addHeader("Access-Control-Allow-Origin", "*");
     response->addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -618,6 +642,38 @@ void setup() {
     }
   });
 
+  server.on("/api/version", HTTP_GET, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"version\":\"" + String(FIRMWARE_VERSION) + "\"}");
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    request->send(response);
+  });
+
+  server.on("/api/update", HTTP_POST, [](AsyncWebServerRequest *request){
+  }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    if(index == 0) {
+      if (!checkAuth(request)) {
+        request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+        return;
+      }
+      JsonDocument doc;
+      if(!deserializeJson(doc, data, len)) {
+        extern bool shouldUpdateOta;
+        extern String otaFirmwareUrl;
+        extern String otaFsUrl;
+        
+        otaFirmwareUrl = doc["firmwareUrl"].as<String>();
+        otaFsUrl = doc["fsUrl"].as<String>();
+        shouldUpdateOta = true;
+
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"updating\"}");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
+      } else {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      }
+    }
+  });
+
   // Serve static files from LittleFS
   server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
@@ -670,5 +726,39 @@ void loop() {
   
   if (shouldRestart && millis() - restartTime > 1000) {
     ESP.restart();
+  }
+
+  if (shouldUpdateOta) {
+    shouldUpdateOta = false;
+    Serial.println("Iniciando processo de OTA...");
+    
+    WiFiClientSecure client;
+    client.setInsecure(); // Necessário para baixar releases do GitHub sem checar o root CA
+    
+    if (otaFsUrl.length() > 0) {
+      Serial.print("Atualizando LittleFS de: ");
+      Serial.println(otaFsUrl);
+      t_httpUpdate_return retFS = httpUpdate.updateSpiffs(client, otaFsUrl);
+      if(retFS == HTTP_UPDATE_OK) {
+         Serial.println("LittleFS atualizado com sucesso!");
+      } else {
+         Serial.printf("Erro na atualização do FS: %s\n", httpUpdate.getLastErrorString().c_str());
+      }
+    }
+    
+    if (otaFirmwareUrl.length() > 0) {
+      Serial.print("Atualizando Firmware de: ");
+      Serial.println(otaFirmwareUrl);
+      t_httpUpdate_return retFW = httpUpdate.update(client, otaFirmwareUrl);
+      if(retFW == HTTP_UPDATE_OK) {
+         Serial.println("Firmware atualizado com sucesso!");
+      } else {
+         Serial.printf("Erro na atualização do FW: %s\n", httpUpdate.getLastErrorString().c_str());
+      }
+    }
+    
+    Serial.println("OTA Finalizado. Reiniciando em breve...");
+    shouldRestart = true;
+    restartTime = millis();
   }
 }
