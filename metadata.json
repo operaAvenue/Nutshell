@@ -1,0 +1,1 @@
+{"name":"ESP32 IoT Controller","description":"Interface web reativa e leve para controle de dispositivos ESP32 por Wi-Fi, com suporte à visualização de nós na rede e exportação de firmware.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
