@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+.pio
+.vscode
+pio_log.txt
