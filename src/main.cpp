@@ -11,7 +11,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
-#define FIRMWARE_VERSION "v1.0.0"
+#define FIRMWARE_VERSION "v1.0.2"
 
 // Default network credentials
 const char* DEFAULT_WIFI_SSID = "YOUR_WIFI_SSID";
