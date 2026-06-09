@@ -51,7 +51,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
   };
 
   return (
-    <div className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm flex flex-col h-[320px]">
+    <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm flex flex-col h-[320px]">
       {/* Console Header */}
       <div className="flex justify-between items-center pb-3 border-b border-[#252833]/60 mb-3">
         <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
             type="button"
             onClick={simulateButtonPress}
             title="Simular alguma atividade no ESP32"
-            className="flex items-center gap-1 text-[9px] font-mono px-2.5 py-1.5 bg-[#12141C] hover:bg-[#252936] border border-white/5 text-slate-400 hover:text-white rounded-lg transition-all"
+            className="flex items-center gap-1 text-[9px] font-mono px-2.5 py-1.5 glass-panel hover:bg-[#252936] border border-white/5 text-slate-400 hover:text-white rounded-lg transition-all"
           >
             <PlayCircle className="w-3 h-3 text-cyan-400" /> Simular atividade
           </button>
@@ -73,7 +73,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
           <button 
             type="button" 
             onClick={onClearLogs}
-            className="p-1.5 px-2 rounded-lg bg-[#12141C] hover:bg-[#252936] text-slate-500 hover:text-rose-400 transition-all border border-white/5"
+            className="p-1.5 px-2 rounded-lg glass-panel hover:bg-[#252936] text-slate-500 hover:text-rose-400 transition-all border border-white/5"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -90,7 +90,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
               className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
                 filter === src 
                   ? 'bg-cyan-500 text-slate-950 font-bold' 
-                  : 'bg-[#12141C] text-slate-500 hover:text-slate-300'
+                  : 'glass-panel text-slate-500 hover:text-slate-300'
               }`}
             >
               {src}
@@ -102,7 +102,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
       {/* Monitor Display Screen */}
       <div 
         ref={scrollRef}
-        className="flex-1 bg-[#12141C] p-3 mt-3 rounded-2xl border border-white/5 font-mono text-[9.5px] leading-relaxed overflow-y-auto max-h-[195px]"
+        className="flex-1 glass-panel p-3 mt-3 rounded-2xl border border-white/5 font-mono text-[9.5px] leading-relaxed overflow-y-auto max-h-[195px]"
       >
         {filteredLogs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-650 gap-1.5 py-6">

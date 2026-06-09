@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { INITIAL_PINS, INITIAL_NODES, DEFAULT_WIFI_SETTINGS } from '../data';
 import { ESP32Pin, ESP32Node, WiFiSettings, SerialLog } from '../types';
 import ESP32Visualizer from './ESP32Visualizer';
@@ -309,13 +310,13 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div id="main-panel" className="min-h-screen bg-[#090A0D] text-slate-200 font-sans flex flex-col justify-between antialiased">
+    <div id="main-panel" className="min-h-screen text-slate-200 font-sans flex flex-col justify-between antialiased">
       
       {/* BACKGROUND AMBIENT DETAILS */}
       <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-cyan-900/10 via-slate-900/5 to-transparent pointer-events-none select-none" />
 
       {/* HEADER BAR */}
-      <header className="relative border-b border-[#252833]/60 bg-[#12141C]/80 backdrop-blur-md px-6 py-4.5 flex justify-between items-center z-20">
+      <header className="relative border-b border-[#252833]/60 glass-panel backdrop-blur-md px-6 py-4.5 flex justify-between items-center z-20">
         <div className="flex items-center gap-2.5">
           <div className="p-2 border border-cyan-500/20 bg-cyan-600/10 text-cyan-400 rounded-2xl">
             <Cpu className="w-5 h-5 animate-pulse" />
@@ -331,7 +332,7 @@ export default function AdminDashboard() {
 
         {/* Dynamic network indicators */}
         <div className="flex items-center gap-3.5">
-          <div className="hidden sm:flex items-center gap-2 bg-[#1C1F2B] border border-white/5 py-1.5 px-3.5 rounded-2xl font-mono text-[9.5px] select-none text-slate-400">
+          <div className="hidden sm:flex items-center gap-2 glass-panel border border-white/5 py-1.5 px-3.5 rounded-2xl font-mono text-[9.5px] select-none text-slate-400">
             <Radio className="w-3.5 h-3.5 text-slate-500" />
             <span>Pino selecionado: </span>
             <span className="font-bold text-cyan-400">G{selectedPin.gpio}</span>
@@ -344,7 +345,7 @@ export default function AdminDashboard() {
         <div className="transition-all duration-300 w-full">
             
             {/* NETWORK BANNER */}
-            <div className="bg-[#1C1F2B] py-4 px-5 rounded-3xl border border-white/5 mb-5 flex items-center justify-between shadow-inner">
+            <div className="glass-card py-4 px-5 rounded-3xl border border-white/5 mb-5 flex items-center justify-between shadow-inner">
               <div className="flex items-center gap-3">
                 <div className={`p-2.5 rounded-2xl border select-none transition-all ${
                   wifiSettings.mode === 'AP' 
@@ -370,7 +371,7 @@ export default function AdminDashboard() {
                 >
                   Configurar Wi-Fi
                 </button>
-                <div className="text-[9.5px] font-bold text-cyan-500 uppercase tracking-wider font-mono py-1 px-3 bg-[#12141C] border border-white/5 rounded-xl">
+                <div className="text-[9.5px] font-bold text-cyan-500 uppercase tracking-wider font-mono py-1 px-3 glass-panel border border-white/5 rounded-xl">
                   Reg: {wifiSettings.mode}
                 </div>
               </div>
@@ -379,7 +380,7 @@ export default function AdminDashboard() {
             {/* WIFI MODAL */}
             {showWifiModal && (
               <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <form onSubmit={submitWifiConfig} className="bg-[#1C1F2B] border border-cyan-500/30 p-5 rounded-2xl w-full max-w-sm shadow-2xl">
+                <form onSubmit={submitWifiConfig} className="glass-panel border border-cyan-500/30 p-5 rounded-2xl w-full max-w-sm shadow-2xl">
                   <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider font-mono flex items-center gap-2">
                     <Wifi className="w-4 h-4 text-cyan-400" /> Configurar Nova Rede
                   </h3>
@@ -390,7 +391,7 @@ export default function AdminDashboard() {
                         type="text" 
                         value={wifiInputSsid}
                         onChange={(e) => setWifiInputSsid(e.target.value)}
-                        className="w-full bg-[#12141C] border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
                         placeholder="Minha_Casa_5G"
                         required 
                       />
@@ -401,7 +402,7 @@ export default function AdminDashboard() {
                         type="password" 
                         value={wifiInputPass}
                         onChange={(e) => setWifiInputPass(e.target.value)}
-                        className="w-full bg-[#12141C] border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
                         placeholder="••••••••"
                         required 
                       />
@@ -416,66 +417,36 @@ export default function AdminDashboard() {
             )}
 
             {/* TAB SELECTOR NAV */}
-            <nav className="grid grid-cols-5 gap-1 p-1 bg-[#1A1D27] rounded-2xl border border-white/5 mb-5 select-none">
-              <button 
-                onClick={() => setActiveTab('CONTROLS')}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  activeTab === 'CONTROLS' 
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Sliders className="w-4 h-4" />
-                <span className="text-[8.5px] font-mono whitespace-nowrap">Dashboard</span>
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('MESH')}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  activeTab === 'MESH' 
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-                <span className="text-[8.5px] font-mono whitespace-nowrap">Malha</span>
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('MQTT')}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  activeTab === 'MQTT' 
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Network className="w-4 h-4" />
-                <span className="text-[8.5px] font-mono whitespace-nowrap">Home Assistant</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('FIRMWARE')}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  activeTab === 'FIRMWARE' 
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <FileCode className="w-4 h-4" />
-                <span className="text-[8.5px] font-mono whitespace-nowrap">C++ Code</span>
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('OTA')}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                  activeTab === 'OTA' 
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <CloudDownload className="w-4 h-4" />
-                <span className="text-[8.5px] font-mono whitespace-nowrap">OTA</span>
-              </button>
+            <nav className="grid grid-cols-5 gap-1 p-1 glass-card rounded-2xl border border-white/5 mb-5 select-none relative z-0 shadow-inner">
+              {[
+                { id: 'CONTROLS', icon: Sliders, label: 'Dashboard' },
+                { id: 'MESH', icon: Layers, label: 'Malha' },
+                { id: 'MQTT', icon: Network, label: 'Home Assistant' },
+                { id: 'FIRMWARE', icon: FileCode, label: 'C++ Code' },
+                { id: 'OTA', icon: CloudDownload, label: 'OTA' },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`relative py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-colors cursor-pointer z-10 ${
+                      isActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTabBackground"
+                        className="absolute inset-0 glass-panel rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.15)] border border-cyan-500/20 -z-10"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <Icon className="w-4 h-4" />
+                    <span className="text-[8.5px] font-mono whitespace-nowrap">{tab.label}</span>
+                  </button>
+                );
+              })}
             </nav>
 
             {/* MAIN TAB SWITCHBOARD */}
@@ -483,7 +454,7 @@ export default function AdminDashboard() {
               {activeTab === 'CONTROLS' && (
                 <div className="flex flex-col">
                   {/* Mobile Layout Switcher (Visible on real mobile) */}
-                  <div className="flex lg:hidden bg-[#1A1D27] p-1 rounded-xl border border-white/5 mb-4">
+                  <div className="flex lg:hidden glass-panel p-1 rounded-xl border border-white/5 mb-4">
                     <button 
                       onClick={() => setMobileDashboardView('VISUAL')}
                       className={`flex-1 py-2 text-[10.5px] uppercase tracking-wider font-bold rounded-lg transition-all ${mobileDashboardView === 'VISUAL' ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
@@ -542,7 +513,7 @@ export default function AdminDashboard() {
               )}
 
               {activeTab === 'MQTT' && (
-                <div className="bg-[#1C1F2B] p-6 rounded-2xl border border-white/5">
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
                   <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
                     <Network className="w-6 h-6 text-cyan-500" />
                     Integração Home Assistant (MQTT)
@@ -557,7 +528,7 @@ export default function AdminDashboard() {
                         type="text" 
                         value={mqttSettings.server} 
                         onChange={(e) => setMqttSettings({...mqttSettings, server: e.target.value})}
-                        className="bg-[#12141C] border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
                         placeholder="Ex: 192.168.1.100"
                       />
                     </div>
@@ -567,7 +538,7 @@ export default function AdminDashboard() {
                         type="number" 
                         value={mqttSettings.port} 
                         onChange={(e) => setMqttSettings({...mqttSettings, port: parseInt(e.target.value) || 1883})}
-                        className="bg-[#12141C] border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
                       />
                     </div>
                     <div className="flex flex-col">
@@ -576,7 +547,7 @@ export default function AdminDashboard() {
                         type="text" 
                         value={mqttSettings.user} 
                         onChange={(e) => setMqttSettings({...mqttSettings, user: e.target.value})}
-                        className="bg-[#12141C] border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
                       />
                     </div>
                     <div className="flex flex-col">
@@ -585,7 +556,7 @@ export default function AdminDashboard() {
                         type="password" 
                         value={mqttSettings.pass} 
                         onChange={(e) => setMqttSettings({...mqttSettings, pass: e.target.value})}
-                        className="bg-[#12141C] border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
                       />
                     </div>
                     <div className="md:col-span-2 flex justify-end mt-4">
@@ -626,7 +597,7 @@ export default function AdminDashboard() {
       </main>
 
       {/* FOOTER */}
-      <footer className="relative bg-[#090A0D] border-t border-[#252833]/60 py-4 px-6 text-center select-none z-20">
+      <footer className="relative glass-panel border-t border-[#252833]/60 py-4 px-6 text-center select-none z-20">
         <p className="text-[9.5px] font-mono text-slate-550 leading-normal">
           Designed for <strong className="text-slate-400 font-semibold">NodeMCU & ESP32-WROOM-32</strong> | Direct LAN Server Serviced
         </p>

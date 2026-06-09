@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ESP32Pin, PinMode } from '../types';
 import { ToggleLeft, ToggleRight, RotateCcw, Sliders, Activity, Info, Tag, Bolt } from 'lucide-react';
 
@@ -85,91 +86,101 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
   return (
     <div className="flex flex-col gap-5 h-full">
       {/* SECTION 1: Active Pins Quick Switch Board */}
-      <div id="quick-controls" className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
+      <div id="quick-controls" className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-3.5">
           <Bolt className="w-4 h-4 text-cyan-400" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">Controles Rápidos</h4>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 max-h-[160px] overflow-y-auto pr-1">
-          {pins.filter(p => p.mode !== 'UNUSED').length === 0 ? (
-            <div className="col-span-2 text-center py-6 text-slate-500 text-xs">
-              Nenhuma GPIO em uso. Selecione um pino no ESP32 para configurá-lo.
-            </div>
-          ) : (
-            pins.filter(p => p.mode !== 'UNUSED').map(pin => {
-              const isSelected = selectedPin.gpio === pin.gpio;
-              return (
-                <div 
-                  key={pin.gpio} 
-                  onClick={() => onSelectPinByGpio(pin.gpio)}
-                  className={`flex items-center justify-between p-2.5 rounded-2xl cursor-pointer text-xs border transition-all ${
-                    isSelected 
-                      ? 'bg-cyan-600/10 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]' 
-                      : 'bg-[#12141C] border-white/5 text-slate-400 hover:border-slate-700/80'
-                  }`}
-                >
-                  <div className="truncate flex flex-col gap-0.5 justify-center min-w-0 pr-1.5">
-                    <span className="font-semibold truncate text-[11px] text-slate-200">
-                      {pin.customLabel || pin.name}
-                    </span>
-                    <span className="text-[9px] font-mono opacity-65 scale-90 origin-left text-cyan-500">
-                      G{pin.gpio} • {pin.mode === 'DIGITAL_OUTPUT' ? 'OUT' : pin.mode === 'PWM_OUTPUT' ? 'PWM' : pin.mode === 'ANALOG_INPUT' ? 'ADC' : pin.mode === 'DIGITAL_INPUT' ? 'IN' : 'SENS'}
-                    </span>
-                  </div>
+          <AnimatePresence>
+            {pins.filter(p => p.mode !== 'UNUSED').length === 0 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-2 text-center py-6 text-slate-500 text-xs">
+                Nenhuma GPIO em uso. Selecione um pino no ESP32 para configurá-lo.
+              </motion.div>
+            ) : (
+              pins.filter(p => p.mode !== 'UNUSED').map(pin => {
+                const isSelected = selectedPin.gpio === pin.gpio;
+                return (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={{ scale: 1.02 }}
+                    key={pin.gpio} 
+                    onClick={() => onSelectPinByGpio(pin.gpio)}
+                    className={`flex items-center justify-between p-2.5 rounded-2xl cursor-pointer text-xs border transition-all relative overflow-hidden group ${
+                      isSelected 
+                        ? 'bg-cyan-600/10 border-cyan-500/50 text-white shadow-[0_0_15px_rgba(6,182,212,0.15)]' 
+                        : 'bg-white/5 backdrop-blur-md border-white/5 text-slate-400 hover:border-slate-700/80'
+                    }`}
+                  >
+                    {/* Mouse Glow Effect Background */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/0 to-cyan-500/0 group-hover:from-cyan-500/5 group-hover:via-cyan-500/10 group-hover:to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                  {/* Quick Control Toggle/Output state display */}
-                  <div onClick={(e) => { e.stopPropagation(); onSelectPinByGpio(pin.gpio); }} className="flex-shrink-0">
-                    {pin.mode === 'DIGITAL_OUTPUT' && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const newValue = pin.value === 0 ? 1 : 0;
-                          onUpdatePin({ ...pin, value: newValue });
-                          onAddLog('GPIO', `GPIO ${pin.gpio} (${pin.customLabel}) alternado para [${newValue ? 'ON' : 'OFF'}]`);
-                          fetch(`/api/toggle?pin=${pin.gpio}&val=${newValue}`).catch(() => {});
-                        }}
-                        className={`p-1.5 rounded-full transition-all ${pin.value === 1 ? 'text-emerald-450 bg-emerald-950/40' : 'text-slate-500 hover:text-slate-300'}`}
-                      >
-                        {pin.value === 1 ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                      </button>
-                    )}
-                    {pin.mode === 'PWM_OUTPUT' && (
-                      <span className="bg-cyan-950/40 border border-cyan-900/35 text-cyan-400 text-[9px] py-0.5 px-2 rounded-full font-mono">
-                        {Math.round((pin.value / 255) * 100)}%
+                    <div className="truncate flex flex-col gap-0.5 justify-center min-w-0 pr-1.5 relative z-10">
+                      <span className="font-semibold truncate text-[11px] text-slate-200">
+                        {pin.customLabel || pin.name}
                       </span>
-                    )}
-                    {(pin.mode === 'ANALOG_INPUT' || pin.mode.startsWith('SENSOR_')) && (
-                      <span className="bg-purple-950/40 border border-purple-900/35 text-purple-400 text-[9px] py-0.5 px-2 rounded-full font-mono animate-pulse">
-                        {pin.value}
+                      <span className="text-[9px] font-mono opacity-65 scale-90 origin-left text-cyan-500">
+                        G{pin.gpio} • {pin.mode === 'DIGITAL_OUTPUT' ? 'OUT' : pin.mode === 'PWM_OUTPUT' ? 'PWM' : pin.mode === 'ANALOG_INPUT' ? 'ADC' : pin.mode === 'DIGITAL_INPUT' ? 'IN' : 'SENS'}
                       </span>
-                    )}
-                    {pin.mode === 'DIGITAL_INPUT' && (
-                      <span className={`px-2 py-0.5 text-[9px] font-mono rounded-full border ${
-                        pin.value === 1 
-                          ? 'bg-amber-950/40 border-amber-900/50 text-amber-400 font-bold' 
-                          : 'bg-[#12141C] border-[#252833] text-slate-500'
-                      }`}>
-                        {pin.value === 1 ? 'HIGH' : 'LOW'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
+                    </div>
+
+                    {/* Quick Control Toggle/Output state display */}
+                    <div onClick={(e) => { e.stopPropagation(); onSelectPinByGpio(pin.gpio); }} className="flex-shrink-0 relative z-10">
+                      {pin.mode === 'DIGITAL_OUTPUT' && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newValue = pin.value === 0 ? 1 : 0;
+                            onUpdatePin({ ...pin, value: newValue });
+                            onAddLog('GPIO', `GPIO ${pin.gpio} (${pin.customLabel}) alternado para [${newValue ? 'ON' : 'OFF'}]`);
+                            fetch(`/api/toggle?pin=${pin.gpio}&val=${newValue}`).catch(() => {});
+                          }}
+                          className={`p-1.5 rounded-full transition-all ${pin.value === 1 ? 'text-emerald-450 bg-emerald-950/40' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                          {pin.value === 1 ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                        </button>
+                      )}
+                      {pin.mode === 'PWM_OUTPUT' && (
+                        <span className="bg-cyan-950/40 border border-cyan-900/35 text-cyan-400 text-[9px] py-0.5 px-2 rounded-full font-mono">
+                          {Math.round((pin.value / 255) * 100)}%
+                        </span>
+                      )}
+                      {(pin.mode === 'ANALOG_INPUT' || pin.mode.startsWith('SENSOR_')) && (
+                        <span className="bg-purple-950/40 border border-purple-900/35 text-purple-400 text-[9px] py-0.5 px-2 rounded-full font-mono animate-pulse">
+                          {pin.value}
+                        </span>
+                      )}
+                      {pin.mode === 'DIGITAL_INPUT' && (
+                        <span className={`px-2 py-0.5 text-[9px] font-mono rounded-full border ${
+                          pin.value === 1 
+                            ? 'bg-amber-950/40 border-amber-900/50 text-amber-400 font-bold' 
+                            : 'glass-panel border-[#252833] text-slate-500'
+                        }`}>
+                          {pin.value === 1 ? 'HIGH' : 'LOW'}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* SECTION 2: GPIO Settings Panel */}
-      <div id="pin-settings" className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 backdrop-blur-sm flex-1 flex flex-col justify-between shadow-inner">
+      <div id="pin-settings" className="glass-card p-5 rounded-3xl border border-white/5 backdrop-blur-sm flex-1 flex flex-col justify-between shadow-inner">
         <div>
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#252833]/60">
             <div className="flex items-center gap-2">
               <Sliders className="w-4 h-4 text-cyan-400" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">Ajuste de GPIO</h4>
             </div>
-            <span className="font-mono text-[10px] bg-[#12141C] px-2.5 py-1 rounded-full border border-white/5 text-cyan-400 font-bold">
+            <span className="font-mono text-[10px] glass-panel px-2.5 py-1 rounded-full border border-white/5 text-cyan-400 font-bold">
               {selectedPin.name}
             </span>
           </div>
@@ -183,7 +194,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
               <select 
                 value={selectedPin.mode} 
                 onChange={handleModeChange}
-                className="w-full bg-[#12141C] border border-[#252833] hover:border-slate-700 text-xs px-3 py-2.5 rounded-2xl text-slate-200 outline-none focus:border-cyan-500/80 transition-all cursor-pointer font-medium"
+                className="w-full glass-panel border border-[#252833] hover:border-slate-700 text-xs px-3 py-2.5 rounded-2xl text-slate-200 outline-none focus:border-cyan-500/80 transition-all cursor-pointer font-medium"
               >
                 <option value="UNUSED">Não Selecionado (Inativo)</option>
                 <option value="DIGITAL_OUTPUT">Saída Digital (Controle Lig/Desl)</option>
@@ -213,7 +224,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
                   onChange={handleLabelChange}
                   disabled={selectedPin.mode === 'UNUSED'}
                   placeholder="Ex: Sensor de Solo, LED Sala.."
-                  className="w-full bg-[#12141C] border border-[#252833] hover:border-slate-700 text-xs pl-3 pr-8 py-2.5 rounded-2xl text-slate-200 outline-none focus:border-cyan-500/80 transition-all disabled:opacity-45 disabled:pointer-events-none font-medium"
+                  className="w-full glass-panel border border-[#252833] hover:border-slate-700 text-xs pl-3 pr-8 py-2.5 rounded-2xl text-slate-200 outline-none focus:border-cyan-500/80 transition-all disabled:opacity-45 disabled:pointer-events-none font-medium"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-650 pointer-events-none text-[11px] font-mono">
                   G{selectedPin.gpio}
@@ -248,7 +259,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
 
             {/* SENSOR CALIBRATION INPUTS */}
             {selectedPin.mode.startsWith('SENSOR_') && (
-              <div className="flex flex-col gap-3 p-3 bg-[#12141C] border border-[#252833] rounded-2xl">
+              <div className="flex flex-col gap-3 p-3 glass-panel border border-[#252833] rounded-2xl">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Sliders className="w-3.5 h-3.5 text-cyan-500" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 font-mono">Calibração do Sensor</span>
@@ -260,7 +271,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
                     <input type="number" step="0.1"
                       value={selectedPin.calibMultiplier || ''} 
                       onChange={e => onUpdatePin({ ...selectedPin, calibMultiplier: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-[#1C1F2B] border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: 7.5" />
+                      className="w-full glass-card border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: 7.5" />
                   </div>
                 )}
                 
@@ -271,14 +282,14 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
                       <input type="number" step="0.01"
                         value={selectedPin.calibOffset || ''} 
                         onChange={e => onUpdatePin({ ...selectedPin, calibOffset: parseFloat(e.target.value) || 0 })}
-                        className="w-full bg-[#1C1F2B] border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: 0.0" />
+                        className="w-full glass-card border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: 0.0" />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[9px] text-slate-400 font-mono">Multiplicador</label>
                       <input type="number" step="0.001"
                         value={selectedPin.calibMultiplier || ''} 
                         onChange={e => onUpdatePin({ ...selectedPin, calibMultiplier: parseFloat(e.target.value) || 0 })}
-                        className="w-full bg-[#1C1F2B] border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: 1.0" />
+                        className="w-full glass-card border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: 1.0" />
                     </div>
                   </div>
                 )}
@@ -289,7 +300,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
                     <input type="number" step="0.1"
                       value={selectedPin.calibOffset || ''} 
                       onChange={e => onUpdatePin({ ...selectedPin, calibOffset: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-[#1C1F2B] border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: -1.5" />
+                      className="w-full glass-card border border-[#252833] text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none" placeholder="Ex: -1.5" />
                   </div>
                 )}
               </div>
@@ -300,7 +311,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
         {/* SECTION 3: Dynamic Interactors based on selected mode */}
         <div className="mt-6 pt-5 border-t border-[#252833]/65">
           {selectedPin.mode === 'UNUSED' && (
-            <div className="text-center py-6 px-4 bg-[#12141C] rounded-2xl border border-dashed border-[#252833]">
+            <div className="text-center py-6 px-4 glass-panel rounded-2xl border border-dashed border-[#252833]">
               <p className="text-[11px] text-slate-400 leading-normal">
                 Este pino está <span className="text-slate-500 font-bold">Inativo</span> no momento.
               </p>
@@ -312,7 +323,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
 
           {selectedPin.mode === 'DIGITAL_OUTPUT' && (
             <div className="flex flex-col gap-3.5">
-              <div className="flex items-center justify-between bg-[#12141C] p-3.5 rounded-2xl border border-white/5">
+              <div className="flex items-center justify-between glass-panel p-3.5 rounded-2xl border border-white/5">
                 <div className="flex flex-col">
                   <span className="text-[11px] font-bold text-slate-200">Estado Local do Pino</span>
                   <span className="text-[9.5px] text-slate-500">Valor enviado ao pino físico</span>
@@ -321,8 +332,8 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
                   onClick={handleToggleDigitalValue}
                   className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-tight transition-all shadow-md ${
                     selectedPin.value === 1 
-                      ? 'bg-[#252936] text-white border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.15)] active:bg-[#1C1F2B]' 
-                      : 'bg-[#252936] text-slate-400 border border-white/5 hover:bg-[#1C1F2B]'
+                      ? 'bg-[#252936] text-white border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.15)] active:glass-card' 
+                      : 'bg-[#252936] text-slate-400 border border-white/5 hover:glass-card'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${selectedPin.value === 1 ? 'bg-cyan-400 animate-ping' : 'bg-neutral-600'}`} />
@@ -335,7 +346,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
           
           {selectedPin.mode.startsWith('SENSOR_') && (
             <div className="flex flex-col gap-3.5">
-              <div className="flex items-center justify-between bg-[#12141C] p-3.5 rounded-2xl border border-white/5">
+              <div className="flex items-center justify-between glass-panel p-3.5 rounded-2xl border border-white/5">
                 <div className="flex flex-col">
                   <span className="text-[11px] font-bold text-slate-200">Leitura do Sensor</span>
                   <span className="text-[9.5px] text-slate-500">Valor com calibração aplicada</span>
@@ -348,7 +359,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
           )}
 
           {selectedPin.mode === 'DIGITAL_INPUT' && (
-            <div className="bg-[#12141C] p-4 rounded-2xl border border-white/5 flex items-center justify-between">
+            <div className="glass-panel p-4 rounded-2xl border border-white/5 flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[11px] font-bold text-slate-200">Leitura de Entrada</span>
                 <span className="text-[9.5px] text-slate-500">Valor reportado pelo ESP32</span>
@@ -357,7 +368,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
                 className={`py-2 px-4 rounded-xl text-xs font-bold tracking-tight border transition-all ${
                   selectedPin.value === 1 
                     ? 'bg-cyan-500 border-cyan-400 text-white shadow-lg shadow-cyan-500/20' 
-                    : 'bg-[#12141C] border-[#252833] text-slate-400'
+                    : 'glass-panel border-[#252833] text-slate-400'
                 }`}
               >
                 {selectedPin.value === 1 ? 'ALTO (HIGH)' : 'BAIXO (LOW)'}
@@ -367,7 +378,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
 
           {selectedPin.mode === 'ANALOG_INPUT' && (
             <div className="flex flex-col gap-3.5">
-              <div className="bg-[#12141C] p-3.5 rounded-2xl border border-white/5">
+              <div className="glass-panel p-3.5 rounded-2xl border border-white/5">
                 <div className="flex justify-between items-center mb-1 font-mono text-[10px]">
                   <span className="text-slate-400 uppercase tracking-widest font-bold flex items-center gap-1">
                     <Activity className="w-3.5 h-3.5 text-purple-400" /> Leitura ADC (12-bit)
@@ -395,7 +406,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
 
           {selectedPin.mode === 'PWM_OUTPUT' && (
             <div className="flex flex-col gap-3.5">
-              <div className="bg-[#12141C] p-3.5 rounded-2xl border border-white/5">
+              <div className="glass-panel p-3.5 rounded-2xl border border-white/5">
                 <div className="flex justify-between items-center mb-1 font-mono text-[10px]">
                   <span className="text-slate-400 uppercase tracking-widest font-bold flex items-center gap-1">
                     <Activity className="w-3.5 h-3.5 text-cyan-450" /> Duty Cycle (8-bit)
@@ -418,7 +429,7 @@ export default function PinController({ pins, selectedPin, onUpdatePin, onSelect
               </div>
 
               {/* PWM Adjust input */}
-              <div className="flex flex-col gap-1.5 bg-[#12141C]/40 p-3 rounded-2xl border border-white/5">
+              <div className="flex flex-col gap-1.5 glass-panel/40 p-3 rounded-2xl border border-white/5">
                 <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-bold">Ajustar Potência</span>
                 <input 
                   type="range"

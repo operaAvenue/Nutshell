@@ -22,3 +22,104 @@
   background: rgba(255,255,255,0.2);
 }
 
+/* Figma-style Mesh Gradient Animation */
+@keyframes mesh-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.mesh-bg {
+  background: linear-gradient(
+    -45deg, 
+    #0d0f17 0%, 
+    #131b2f 25%, 
+    #0f2231 50%, 
+    #0c1424 75%, 
+    #0d0f17 100%
+  );
+  background-size: 400% 400%;
+  animation: mesh-gradient 20s ease infinite;
+}
+
+/* Ambient floating orbs for the background */
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  animation: float 15s ease-in-out infinite;
+}
+
+.orb-1 {
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, rgba(0,0,0,0) 70%);
+  top: -10%;
+  left: -10%;
+  animation-delay: 0s;
+}
+
+.orb-2 {
+  width: 35vw;
+  height: 35vw;
+  background: radial-gradient(circle, rgba(168,85,247,0.1) 0%, rgba(0,0,0,0) 70%);
+  bottom: -5%;
+  right: -5%;
+  animation-delay: -5s;
+}
+
+.orb-3 {
+  width: 30vw;
+  height: 30vw;
+  background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, rgba(0,0,0,0) 70%);
+  top: 40%;
+  left: 30%;
+  animation-delay: -10s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, 5%) scale(1.05);
+  }
+  66% {
+    transform: translate(-2%, 2%) scale(0.95);
+  }
+}
+
+/* Enhanced Frost/Glassmorphism utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: rgba(18, 20, 28, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Particle Animation base */
+.particle {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}

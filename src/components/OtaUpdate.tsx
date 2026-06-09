@@ -23,6 +23,36 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
   const [currentVersion, setCurrentVersion] = useState<string>("Desconhecida");
   const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState<boolean>(false);
+
+  const fetchAutoUpdateState = async () => {
+    try {
+      const targetUrl = selectedNodeIp === 'local' ? '/api/autoupdate' : `http://${selectedNodeIp}/api/autoupdate`;
+      const response = await fetch(targetUrl);
+      if(response.ok) {
+        const data = await response.json();
+        setAutoUpdateEnabled(data.enabled);
+      }
+    } catch(err) {
+      console.warn("Failed to fetch autoupdate state", err);
+    }
+  };
+
+  const toggleAutoUpdate = async () => {
+    const newState = !autoUpdateEnabled;
+    setAutoUpdateEnabled(newState);
+    try {
+      const targetUrl = selectedNodeIp === 'local' ? '/api/autoupdate' : `http://${selectedNodeIp}/api/autoupdate`;
+      await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newState })
+      });
+      onAddLog('SYSTEM', `Atualizações automáticas ${newState ? 'ATIVADAS' : 'DESATIVADAS'}`);
+    } catch(err) {
+      onAddLog('ERROR', "Falha ao salvar preferência de autoupdate.");
+    }
+  };
 
   const fetchCurrentVersion = async () => {
     try {
@@ -59,6 +89,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
 
   useEffect(() => {
     fetchCurrentVersion();
+    fetchAutoUpdateState();
     checkGitHubUpdates();
   }, [selectedNodeIp]);
 
@@ -112,7 +143,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
 
   return (
     <div className="flex flex-col gap-5 mt-5">
-      <div className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
+      <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
         <div className="flex justify-between items-center pb-3 border-b border-[#252833]/60 mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2.5">
             <div className="p-2 border border-cyan-500/15 bg-cyan-500/5 text-cyan-400 rounded-xl">
@@ -130,7 +161,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
               value={selectedNodeIp}
               onChange={(e) => setSelectedNodeIp(e.target.value)}
               disabled={isUpdating}
-              className="bg-[#12141C] border border-[#252833] hover:border-slate-700 text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none transition-all font-mono"
+              className="glass-panel border border-[#252833] hover:border-slate-700 text-xs px-2.5 py-1.5 rounded-xl text-slate-200 outline-none transition-all font-mono"
             >
               <option value="local">ESP32 Principal</option>
               {nodes.filter(n => n.isOnline).map(n => (
@@ -142,7 +173,21 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
           </div>
         </div>
 
-        <div className="bg-[#12141C] p-4.5 rounded-2xl border border-white/5 flex flex-col gap-4">
+        {/* Auto Update Toggle */}
+        <div className="glass-panel p-4.5 rounded-2xl border border-white/5 mb-4 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-200">Atualizações Automáticas</span>
+            <span className="text-[10px] text-slate-500 font-mono mt-0.5">O ESP32 verificará a cada 12 horas.</span>
+          </div>
+          <button
+            onClick={toggleAutoUpdate}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${autoUpdateEnabled ? 'bg-cyan-500' : 'bg-slate-700'}`}
+          >
+            <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${autoUpdateEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        <div className="glass-panel p-4.5 rounded-2xl border border-white/5 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="flex flex-col">
@@ -226,7 +271,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] font-bold text-cyan-400 font-mono">FLUXO DE OTA REMOTO</span>
           <p className="text-[9.5px] text-slate-505 leading-relaxed font-sans">
-            Ao clicar em instalar, o navegador enviará apenas o link de download direto do GitHub (<code className="bg-[#12141C] text-slate-400 px-1.5 py-0.5 rounded font-mono">browser_download_url</code>) para o ESP32. O ESP32 cuidará do download seguro em background através de HTTPS com cliente inseguro, fazendo validação automática do cabeçalho binário!
+            Ao clicar em instalar, o navegador enviará apenas o link de download direto do GitHub (<code className="glass-panel text-slate-400 px-1.5 py-0.5 rounded font-mono">browser_download_url</code>) para o ESP32. O ESP32 cuidará do download seguro em background através de HTTPS com cliente inseguro, fazendo validação automática do cabeçalho binário!
           </p>
         </div>
       </div>

@@ -237,7 +237,7 @@ void loop() {
   return (
     <div className="flex flex-col gap-5">
       {/* Sub-Tab Navigation Bar */}
-      <div className="flex bg-[#12141C] p-1.5 rounded-2xl border border-white/5 shadow-inner w-full max-w-sm md:max-w-md mx-auto mb-1">
+      <div className="flex glass-panel p-1.5 rounded-2xl border border-white/5 shadow-inner w-full max-w-sm md:max-w-md mx-auto mb-1">
         <button
           type="button"
           onClick={() => setSubTab('CODE')}
@@ -267,7 +267,7 @@ void loop() {
       {subTab === 'CODE' ? (
         <>
           {/* Introduction Card */}
-          <div className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
+          <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-cyan-400" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Como instalar no ESP32</h4>
@@ -278,21 +278,21 @@ void loop() {
 
             {/* Steps Guide */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-5">
-              <div className="bg-[#12141C] p-3.5 rounded-2xl border border-white/5 shadow-inner">
+              <div className="glass-panel p-3.5 rounded-2xl border border-white/5 shadow-inner">
                 <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-cyan-400">PASSO 1</span>
                 <h5 className="font-bold text-[11px] text-slate-200 mt-2">Compilar a Interface</h5>
                 <p className="text-[9.5px] text-slate-500 mt-1 leading-normal">
-                  Execute <code className="bg-[#1C1F2B] text-slate-400 px-1 py-0.5 rounded">npm run build</code> para gerar arquivos unificados de baixo footprint na pasta <code className="text-slate-400">dist/</code>.
+                  Execute <code className="glass-card text-slate-400 px-1 py-0.5 rounded">npm run build</code> para gerar arquivos unificados de baixo footprint na pasta <code className="text-slate-400">dist/</code>.
                 </p>
               </div>
-              <div className="bg-[#12141C] p-3.5 rounded-2xl border border-white/5 shadow-inner">
+              <div className="glass-panel p-3.5 rounded-2xl border border-white/5 shadow-inner">
                 <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-cyan-400">PASSO 2</span>
                 <h5 className="font-bold text-[11px] text-slate-200 mt-2">Gzip & Preparação</h5>
                 <p className="text-[9.5px] text-slate-550 mt-1 leading-normal">
                   Comprima o HTML buildado para <code className="text-slate-450 font-mono">.gz</code>. Isso reduz seu peso para cerca de <strong className="text-cyan-400 font-bold">22KB</strong>, ocupando pouquíssimo espaço!
                 </p>
               </div>
-              <div className="bg-[#12141C] p-3.5 rounded-2xl border border-white/5 shadow-inner">
+              <div className="glass-panel p-3.5 rounded-2xl border border-white/5 shadow-inner">
                 <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-cyan-400">PASSO 3</span>
                 <h5 className="font-bold text-[11px] text-slate-200 mt-2">Gravação Arduino</h5>
                 <p className="text-[9.5px] text-slate-500 mt-1 leading-normal">
@@ -303,14 +303,14 @@ void loop() {
           </div>
 
           {/* Code exporter container */}
-          <div className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 flex flex-col shadow-inner">
+          <div className="glass-card p-5 rounded-3xl border border-white/5 flex flex-col shadow-inner">
             <div className="flex justify-between items-center pb-3 border-b border-[#252833]/60 mb-4 flex-wrap gap-2">
               {/* Tabs for select flashing architecture */}
               <div className="flex items-center gap-3">
                 <FileCode className="w-4 h-4 text-cyan-400" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mr-2">Código Firmware Arduino</h4>
                 
-                <div className="flex bg-[#12141C] p-1 rounded-xl border border-white/5">
+                <div className="flex glass-panel p-1 rounded-xl border border-white/5">
                   <button 
                     type="button"
                     onClick={() => setExportMethod('PROGMEM')}
@@ -331,7 +331,7 @@ void loop() {
               <button 
                 type="button"
                 onClick={() => copyCodeToClipboard(generateArduinoCode())}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[10.5px] font-bold bg-[#12141C] hover:bg-[#252936] border border-white/5 hover:border-slate-700 text-slate-300 transition-all active:scale-95 cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[10.5px] font-bold glass-panel hover:bg-[#252936] border border-white/5 hover:border-slate-700 text-slate-300 transition-all active:scale-95 cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Clipboard className="w-3.5 h-3.5 text-cyan-400" />}
                 {copied ? 'Copiado!' : 'Copiar C++'}
@@ -350,7 +350,7 @@ void loop() {
             </div>
 
             {/* Code display window */}
-            <div className="relative bg-[#12141C] rounded-2xl border border-white/5 max-h-[380px] overflow-auto shadow-inner">
+            <div className="relative glass-panel rounded-2xl border border-white/5 max-h-[380px] overflow-auto shadow-inner">
               <pre className="p-4 text-[10px] font-mono text-slate-400 leading-normal whitespace-pre selection:bg-cyan-500 selection:text-slate-950">
                 {generateArduinoCode()}
               </pre>

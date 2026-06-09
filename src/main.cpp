@@ -9,6 +9,7 @@
 #include <vector>
 #include <HTTPUpdate.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 
 #define FIRMWARE_VERSION "v1.0.0"
 
@@ -39,6 +40,10 @@ unsigned long restartTime = 0;
 bool shouldUpdateOta = false;
 String otaFirmwareUrl = "";
 String otaFsUrl = "";
+
+bool autoUpdateEnabled = false;
+unsigned long lastAutoUpdateCheck = 0;
+const unsigned long AUTO_UPDATE_INTERVAL = 12 * 60 * 60 * 1000; // 12 horas
 
 struct PinState {
   int gpio;
@@ -280,6 +285,10 @@ void setup() {
     mqttClient.setCallback(mqttCallback);
     mqttClient.setBufferSize(1024); // Necessário para enviar os JSONs grandes do HA Auto-Discovery
   }
+
+  preferences.begin("ota", true);
+  autoUpdateEnabled = preferences.getBool("autoUpdate", false);
+  preferences.end();
 
   // CORS handlers for OPTIONS preflight
   server.on("/api/pins", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
@@ -674,6 +683,58 @@ void setup() {
     }
   });
 
+  // Route: GET /api/autoupdate
+  server.on("/api/autoupdate", HTTP_GET, [](AsyncWebServerRequest *request){
+    if (!checkAuth(request)) {
+      request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+      return;
+    }
+    String responseStr = "{\"enabled\":";
+    responseStr += autoUpdateEnabled ? "true" : "false";
+    responseStr += "}";
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", responseStr);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    request->send(response);
+  });
+
+  // Route: POST /api/autoupdate
+  server.on("/api/autoupdate", HTTP_POST, [](AsyncWebServerRequest *request){
+  }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    if(index == 0) {
+      if (!checkAuth(request)) {
+        request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
+        return;
+      }
+      JsonDocument doc;
+      if(!deserializeJson(doc, data, len)) {
+        if(doc.containsKey("enabled")) {
+          extern bool autoUpdateEnabled;
+          autoUpdateEnabled = doc["enabled"].as<bool>();
+          Preferences prefs;
+          prefs.begin("ota", false);
+          prefs.putBool("autoUpdate", autoUpdateEnabled);
+          prefs.end();
+          
+          AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
+          response->addHeader("Access-Control-Allow-Origin", "*");
+          request->send(response);
+        } else {
+          request->send(400, "application/json", "{\"error\":\"Missing enabled\"}");
+        }
+      } else {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      }
+    }
+  });
+
+  server.on("/api/autoupdate", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(204);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    request->send(response);
+  });
+
   // Serve static files from LittleFS
   server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
@@ -726,6 +787,43 @@ void loop() {
   
   if (shouldRestart && millis() - restartTime > 1000) {
     ESP.restart();
+  }
+
+  // Auto-update background check
+  if (autoUpdateEnabled && WiFi.status() == WL_CONNECTED) {
+    if (millis() - lastAutoUpdateCheck > AUTO_UPDATE_INTERVAL || lastAutoUpdateCheck == 0) {
+      lastAutoUpdateCheck = millis();
+      Serial.println("Checando por atualizações OTA (Auto-Update)...");
+      
+      HTTPClient http;
+      http.begin("https://api.github.com/repos/operaAvenue/Nutshell/releases/latest");
+      int httpCode = http.GET();
+      if (httpCode > 0) {
+        String payload = http.getString();
+        JsonDocument doc;
+        if (!deserializeJson(doc, payload)) {
+          String tagName = doc["tag_name"].as<String>();
+          if (tagName > String(FIRMWARE_VERSION)) {
+            Serial.println("Nova versão encontrada: " + tagName + " (Atual: " + FIRMWARE_VERSION + ")");
+            JsonArray assets = doc["assets"].as<JsonArray>();
+            for (JsonObject asset : assets) {
+              String name = asset["name"].as<String>();
+              String url = asset["browser_download_url"].as<String>();
+              if (name == "firmware.bin") otaFirmwareUrl = url;
+              if (name == "littlefs.bin") otaFsUrl = url;
+            }
+            if (otaFirmwareUrl.length() > 0 && otaFsUrl.length() > 0) {
+              shouldUpdateOta = true;
+            }
+          } else {
+            Serial.println("Firmware já está na última versão.");
+          }
+        }
+      } else {
+        Serial.printf("Falha na checagem automática: %s\n", http.errorToString(httpCode).c_str());
+      }
+      http.end();
+    }
   }
 
   if (shouldUpdateOta) {

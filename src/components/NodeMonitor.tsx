@@ -84,8 +84,8 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
   return (
     <div className="flex flex-col gap-5">
       {/* Network Header with dynamic stats */}
-      <div className="bg-[#1C1F2B] p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
-        <div className="flex justify-between items-center bg-[#12141C] p-4 rounded-2xl border border-[#252833]/60">
+      <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
+        <div className="flex justify-between items-center glass-panel p-4 rounded-2xl border border-[#252833]/60">
           <div className="flex items-center gap-3">
             <div className="p-2 border border-cyan-500/15 bg-cyan-500/5 text-cyan-400 rounded-xl">
               <Layers className="w-5 h-5 animate-pulse" />
@@ -100,7 +100,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
             <button 
               onClick={handleScan}
               disabled={isScanning}
-              className={`p-2 rounded-xl text-slate-400 border border-white/5 hover:border-slate-705 hover:text-white transition-all ${isScanning ? 'animate-spin border-cyan-500/30 text-cyan-400 bg-cyan-950/20' : 'bg-[#12141C]'}`}
+              className={`p-2 rounded-xl text-slate-400 border border-white/5 hover:border-slate-705 hover:text-white transition-all ${isScanning ? 'animate-spin border-cyan-500/30 text-cyan-400 bg-cyan-950/20' : 'glass-panel'}`}
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -115,7 +115,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
 
         {/* Dynamic add new device form */}
         {showAddForm && (
-          <form onSubmit={handleCreateNode} className="mt-4 p-4 rounded-2xl border border-[#252833]/80 bg-[#12141C] flex flex-col gap-3">
+          <form onSubmit={handleCreateNode} className="mt-4 p-4 rounded-2xl border border-[#252833]/80 glass-panel flex flex-col gap-3">
             <h5 className="text-[10.5px] font-bold uppercase tracking-widest text-slate-300 font-mono">Conectar novo ESP32</h5>
             <div className="grid grid-cols-2 gap-3.5">
               <div className="flex flex-col gap-1">
@@ -193,7 +193,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
           return (
             <div 
               key={node.ip} 
-              className={`bg-[#1C1F2B] p-4.5 rounded-3xl border transition-all shadow-inner ${
+              className={`glass-card p-4.5 rounded-3xl border transition-all shadow-inner ${
                 node.role === 'COORDINATOR' 
                   ? 'border-[#252833] border-l-4 border-l-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.1)]' 
                   : 'border-[#252833]/60'
@@ -202,13 +202,13 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
               {/* Card Header information */}
               <div className="flex justify-between items-start gap-2 border-b border-[#252833]/60 pb-3 mb-3">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-2xl border ${node.role === 'COORDINATOR' ? 'bg-cyan-950/20 border-cyan-500/30 text-cyan-400 animate-pulse' : 'bg-[#12141C] border-[#252833] text-slate-400'}`}>
+                  <div className={`p-2.5 rounded-2xl border ${node.role === 'COORDINATOR' ? 'bg-cyan-950/20 border-cyan-500/30 text-cyan-400 animate-pulse' : 'glass-panel border-[#252833] text-slate-400'}`}>
                     <Server className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-white">{node.hostname}.local</span>
-                      <span className={`text-[8px] font-mono px-2 py-0.5 rounded-full uppercase ${node.role === 'COORDINATOR' ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-400' : 'bg-[#12141C]' + ' border border-[#252833] text-slate-500'}`}>
+                      <span className={`text-[8px] font-mono px-2 py-0.5 rounded-full uppercase ${node.role === 'COORDINATOR' ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-400' : 'glass-panel' + ' border border-[#252833] text-slate-500'}`}>
                         {node.role === 'COORDINATOR' ? 'Coord / AP' : 'Nó Wifi'}
                       </span>
                     </div>
@@ -251,7 +251,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                     return (
                       <div 
                         key={gpio} 
-                        className="bg-[#12141C] border border-[#252833] p-2.5 rounded-2xl flex items-center justify-between text-xs"
+                        className="glass-panel border border-[#252833] p-2.5 rounded-2xl flex items-center justify-between text-xs"
                       >
                         <div className="truncate pr-1">
                           <p className="font-semibold text-[11px] truncate text-slate-350">
@@ -269,7 +269,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                             className={`p-1.5 rounded-full border transition-all cursor-pointer ${
                               pin.value === 1 
                                 ? 'bg-cyan-950/40 border-cyan-500/30 text-cyan-400' 
-                                : 'bg-[#1C1F2B] border-white/5 text-slate-500 hover:text-slate-300'
+                                : 'glass-card border-white/5 text-slate-500 hover:text-slate-300'
                             }`}
                           >
                             <Power className="w-4 h-4" />

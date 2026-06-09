@@ -52,8 +52,8 @@ export default function AdminAuth() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0C10] flex items-center justify-center p-4">
-      <div className="bg-[#12141C] border border-white/5 p-8 rounded-3xl w-full max-w-sm shadow-2xl relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="glass-panel p-8 rounded-3xl w-full max-w-sm shadow-2xl relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl" />
         

@@ -88,11 +88,11 @@ export default function PublicDashboard() {
   const sensorPins = status?.pins.filter(p => p.mode === 'ANALOG_INPUT' || p.mode.startsWith('SENSOR_')) || [];
 
   return (
-    <div className="min-h-screen bg-[#0B0C10] text-slate-300 font-sans selection:bg-cyan-500/30">
-      <header className="bg-[#12141C] border-b border-white/5 sticky top-0 z-50 shadow-md">
+    <div className="min-h-screen text-slate-300 font-sans selection:bg-cyan-500/30">
+      <header className="glass-panel border-b border-white/5 sticky top-0 z-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#1A1D27] rounded-xl border border-white/10 flex justify-center items-center shadow-inner">
+            <div className="w-10 h-10 glass-panel rounded-xl border border-white/10 flex justify-center items-center shadow-inner">
               <Cpu className="w-5 h-5 text-cyan-400" />
             </div>
             <div>
@@ -133,7 +133,7 @@ export default function PublicDashboard() {
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {outputPins.map(pin => (
-                    <div key={pin.gpio} className="bg-[#12141C] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 shadow-lg hover:border-white/10 transition-colors">
+                    <div key={pin.gpio} className="glass-card border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 shadow-lg hover:border-white/10 transition-colors">
                       <span className="text-xs font-bold text-slate-400 text-center truncate w-full">
                         {pin.customLabel || pin.name}
                       </span>
@@ -162,13 +162,13 @@ export default function PublicDashboard() {
                   {sensorPins.map(pin => {
                     const data = sensorHistory[pin.gpio] || [];
                     return (
-                      <div key={pin.gpio} className="bg-[#12141C] border border-white/5 rounded-3xl p-5 shadow-lg flex flex-col hover:border-white/10 transition-colors">
+                      <div key={pin.gpio} className="glass-panel border border-white/5 rounded-3xl p-5 shadow-lg flex flex-col hover:border-white/10 transition-colors">
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <h3 className="text-sm font-bold text-slate-300">{pin.customLabel || pin.name}</h3>
                             <p className="text-[10px] font-mono text-slate-500 mt-1">GPIO {pin.gpio} • {pin.mode.replace('SENSOR_', '')}</p>
                           </div>
-                          <div className="bg-[#1A1D27] px-3 py-1.5 rounded-xl border border-white/5">
+                          <div className="glass-card px-3 py-1.5 rounded-xl border border-white/5 shadow-inner">
                             <span className="text-lg font-bold text-purple-400 font-mono">{pin.value.toFixed(1)}</span>
                           </div>
                         </div>
