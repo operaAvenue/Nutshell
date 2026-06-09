@@ -133,7 +133,7 @@ export default function PublicDashboard() {
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {outputPins.map(pin => (
-                    <div key={pin.gpio} className="glass-card border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 shadow-lg hover:border-white/10 transition-colors">
+                    <div key={pin.gpio} className="glass-panel border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 shadow-lg hover:border-white/10 transition-colors">
                       <span className="text-xs font-bold text-slate-400 text-center truncate w-full">
                         {pin.customLabel || pin.name}
                       </span>
@@ -168,7 +168,7 @@ export default function PublicDashboard() {
                             <h3 className="text-sm font-bold text-slate-300">{pin.customLabel || pin.name}</h3>
                             <p className="text-[10px] font-mono text-slate-500 mt-1">GPIO {pin.gpio} • {pin.mode.replace('SENSOR_', '')}</p>
                           </div>
-                          <div className="glass-card px-3 py-1.5 rounded-xl border border-white/5 shadow-inner">
+                          <div className="glass-panel px-3 py-1.5 rounded-xl border border-white/5 shadow-inner">
                             <span className="text-lg font-bold text-purple-400 font-mono">{pin.value.toFixed(1)}</span>
                           </div>
                         </div>
