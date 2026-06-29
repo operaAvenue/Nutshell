@@ -13,7 +13,7 @@
 #include <time.h>
 #include <ESPmDNS.h>
 
-#define FIRMWARE_VERSION "v1.0.5"
+#define FIRMWARE_VERSION "v1.0.6"
 
 // Default network credentials
 const char* DEFAULT_WIFI_SSID = "";
@@ -337,6 +337,53 @@ void setupPins() {
   }
 }
 
+void saveNetwork(String ssid, String pass) {
+  if (ssid == "" || ssid == "YOUR_WIFI_SSID") return;
+  preferences.begin("wifi_list", false);
+  
+  // See if this SSID is already in the list
+  int foundIndex = -1;
+  for (int i = 0; i < 5; i++) {
+    String s = preferences.getString(("ssid" + String(i)).c_str(), "");
+    if (s == ssid) {
+      foundIndex = i;
+      break;
+    }
+  }
+  
+  if (foundIndex != -1) {
+    // Just update the password for the existing network
+    preferences.putString(("pass" + String(foundIndex)).c_str(), pass);
+  } else {
+    // Find the first empty slot or shift everything to make room at slot 0
+    int emptyIndex = -1;
+    for (int i = 0; i < 5; i++) {
+      String s = preferences.getString(("ssid" + String(i)).c_str(), "");
+      if (s == "") {
+        emptyIndex = i;
+        break;
+      }
+    }
+    
+    if (emptyIndex != -1) {
+      // Use the empty slot
+      preferences.putString(("ssid" + String(emptyIndex)).c_str(), ssid);
+      preferences.putString(("pass" + String(emptyIndex)).c_str(), pass);
+    } else {
+      // Shift 1-4 to 0-3, and put new one in 4
+      for (int i = 0; i < 4; i++) {
+        String nextSsid = preferences.getString(("ssid" + String(i+1)).c_str(), "");
+        String nextPass = preferences.getString(("pass" + String(i+1)).c_str(), "");
+        preferences.putString(("ssid" + String(i)).c_str(), nextSsid);
+        preferences.putString(("pass" + String(i)).c_str(), nextPass);
+      }
+      preferences.putString("ssid4", ssid);
+      preferences.putString("pass4", pass);
+    }
+  }
+  preferences.end();
+}
+
 void setupWiFi() {
   preferences.begin("wifi", true);
   String ssid = preferences.getString("ssid", DEFAULT_WIFI_SSID);
@@ -358,49 +405,94 @@ void setupWiFi() {
 
   WiFi.setHostname(deviceHostname.c_str());
 
-  // If the SSID is empty or the default placeholder, do not connect to STA
-  if (ssid == "" || ssid == "YOUR_WIFI_SSID") {
-    Serial.println("No WiFi credentials configured. Starting AP mode only.");
-    WiFi.disconnect(true, true); // Erase SDK cached credentials to prevent auto-reconnection
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(apSsid.c_str(), AP_PASS);
-    Serial.print("AP SSID: ");
-    Serial.println(apSsid);
-    Serial.print("AP IP Address: ");
-    Serial.println(WiFi.softAPIP());
-  } else {
-    // Start in AP_STA mode so we have a fallback AP while trying to connect
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.softAP(apSsid.c_str(), AP_PASS);
+  // Setup AP_STA mode immediately, allowing up to 10 connections so multiple clients stay connected
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(apSsid.c_str(), AP_PASS, 1, 0, 10);
+  Serial.print("AP SSID: ");
+  Serial.println(apSsid);
+  Serial.print("AP IP Address: ");
+  Serial.println(WiFi.softAPIP());
 
-    WiFi.begin(ssid.c_str(), pass.c_str());
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(ssid);
-    
-    int retries = 0;
-    // Wait up to 15 seconds for initial connection
-    while (WiFi.status() != WL_CONNECTED && retries < 30) {
-      delay(500);
-      Serial.print(".");
-      retries++;
+  // If the SSID is empty or placeholder, do not connect to STA
+  if (ssid == "" || ssid == "YOUR_WIFI_SSID") {
+    Serial.println("No WiFi credentials configured. Running in AP mode only.");
+    return;
+  }
+
+  // Scan for available Wi-Fi networks to check if any match our saved networks memory list
+  Serial.println("Scanning for available Wi-Fi networks...");
+  int n = WiFi.scanNetworks();
+  Serial.print("Scan complete. Found networks: ");
+  Serial.println(n);
+
+  String targetSsid = ssid;
+  String targetPass = pass;
+  bool foundMatch = false;
+
+  preferences.begin("wifi_list", true);
+  for (int i = 0; i < n; ++i) {
+    String scannedSsid = WiFi.SSID(i);
+    // Compare against the list of 5 saved networks
+    for (int j = 0; j < 5; j++) {
+      String savedSsid = preferences.getString(("ssid" + String(j)).c_str(), "");
+      String savedPass = preferences.getString(("pass" + String(j)).c_str(), "");
+      if (savedSsid == scannedSsid && savedSsid != "") {
+        targetSsid = scannedSsid;
+        targetPass = savedPass;
+        foundMatch = true;
+        Serial.print("Found saved network in scan: ");
+        Serial.println(targetSsid);
+        break;
+      }
     }
-    
-    Serial.println();
-    
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("Connected to WiFi!");
-      Serial.print("IP Address: ");
-      Serial.println(WiFi.localIP());
-      // NTP Setup
-      configTime(-3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
-      // Disable AP since we successfully connected
-      WiFi.mode(WIFI_STA);
-    } else {
-      Serial.println("Failed to connect to WiFi quickly. Continuing in AP_STA mode to allow reconfiguration.");
-      Serial.print("AP SSID: ");
-      Serial.println(apSsid);
-      Serial.print("AP IP Address: ");
-      Serial.println(WiFi.softAPIP());
+    if (foundMatch) break;
+  }
+  preferences.end();
+
+  // If we found a matching scanned network, update current active network so we connect to it
+  if (foundMatch) {
+    preferences.begin("wifi", false);
+    preferences.putString("ssid", targetSsid);
+    preferences.putString("pass", targetPass);
+    preferences.end();
+  }
+
+  WiFi.begin(targetSsid.c_str(), targetPass.c_str());
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(targetSsid);
+  
+  int retries = 0;
+  // Wait up to 15 seconds for initial connection
+  while (WiFi.status() != WL_CONNECTED && retries < 30) {
+    delay(500);
+    Serial.print(".");
+    retries++;
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Connected to WiFi!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+    // NTP Setup
+    configTime(-3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+    // We stay in WIFI_AP_STA mode so the AP remains active and clients don't get disconnected!
+  } else {
+    Serial.println("Failed to connect to Wi-Fi. AP remains active for reconfiguration.");
+    // If the scanned network failed, try our main/original network just in case it didn't show in the scan
+    if (targetSsid != ssid) {
+      Serial.print("Retrying with primary configured SSID: ");
+      Serial.println(ssid);
+      WiFi.begin(ssid.c_str(), pass.c_str());
+      retries = 0;
+      while (WiFi.status() != WL_CONNECTED && retries < 20) {
+        delay(500);
+        retries++;
+      }
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("Connected to primary WiFi!");
+        configTime(-3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+      }
     }
   }
 }
@@ -578,7 +670,7 @@ void setup() {
     doc["ip"] = WiFi.localIP().toString();
     doc["heap"] = ESP.getFreeHeap();
     doc["wifi_rssi"] = WiFi.RSSI();
-    doc["wifiMode"] = (WiFi.getMode() == WIFI_AP) ? "AP" : "STA";
+    doc["wifiMode"] = (WiFi.status() == WL_CONNECTED) ? "STA" : "AP";
     
     // Injetar DDNS no status
     JsonObject ddnsObj = doc["ddns"].to<JsonObject>();
@@ -906,12 +998,14 @@ void setup() {
           String role = doc["role"] | "principal";
           int servo_index = doc["servo_index"] | 1;
           
-          preferences.begin("wifi", false);
+           preferences.begin("wifi", false);
           preferences.putString("ssid", ssid);
           preferences.putString("pass", pass);
           preferences.putString("role", role);
           preferences.putInt("servo_index", servo_index);
           preferences.end();
+          
+          saveNetwork(ssid, pass);
           
           AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
           response->addHeader("Access-Control-Allow-Origin", "*");
