@@ -21,6 +21,9 @@ export default function App() {
         document.documentElement.className = savedTheme;
       }
     }
+    // Initialize logo and title scale
+    const scale = localStorage.getItem('logo_scale') || '1.0';
+    document.documentElement.style.setProperty('--logo-scale', scale);
   }, []);
 
   return (

@@ -77,6 +77,7 @@ export default function AdminDashboard() {
   });
 
   const [bgEffect, setBgEffect] = useState(() => localStorage.getItem('background_effect') || 'particles');
+  const [logoScale, setLogoScale] = useState(() => parseFloat(localStorage.getItem('logo_scale') || '1.0'));
 
   useEffect(() => {
     localStorage.setItem('esp32_nodes', JSON.stringify(nodes));
@@ -447,17 +448,23 @@ export default function AdminDashboard() {
       {/* HEADER BAR */}
       <header className="relative border-b border-[#252833]/60 glass-panel backdrop-blur-md px-6 py-4.5 flex justify-between items-center z-20">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 border border-accent-500/20 bg-accent-600/10 text-accent-400 rounded-2xl flex items-center justify-center">
-            <img 
-              src="/logo.svg" 
-              alt="Logo"
-              className="w-5 h-5 animate-pulse"
-            />
-          </div>
+          <svg 
+            viewBox="0 0 128.38 168.24" 
+            className="fill-current text-white flex-shrink-0 animate-pulse"
+            style={{
+              width: 'calc(1.25rem * var(--logo-scale))',
+              height: 'calc(1.25rem * var(--logo-scale))'
+            }}
+          >
+            <path d="M105.41,132.58h0v-6.99c0-1.28-2.1-6.84-2.8-8.28-9.04-18.66-35.46-16.44-46.77-1.28-8.66,11.62-11.28,28.4-1.03,39.92,4.68,5.26,14.22,5.98,19.27,11.34-12.46-4.63-25.99-6.6-39.04-3.13-3.7.98-7.09,2.67-10.61,4.09,3.87-4.86,10.57-7.39,16.47-8.84,2.4-.59,5.07-.56,7.42-1.27.36-.11,1.04.17.69-.73-.77-1.95-4.69-5.72-5.21-7.85-.23-.96.47-3.61.26-5.52-.23-2.2-1.08-4.46-2.51-6.16-.08,1.62,1.01,2.79,1.21,4.58.18,1.6.15,4.43-.32,5.95-.82,2.64-5.54,5.32-7.34,2.67-2.77-7.38-10.82-24.23-20.3-14.4-.78.81-1,2.23-1.93,2.65.44-6.95,3.82-10.96,11.08-10.36-14.91-13.69-32.89-36.11-18.91-56.52,2.91-4.25,7.54-8.59,12.16-10.74.35-1.35-1.03-.98-1.9-1.7-4.97-4.14-4.29-10.9.45-14.93,5.07-4.32,22.25-8.78,21.68-16.81-.37-5.16-6.82-9.45-10.11-12.83,5.83-.32,11.59-.93,17.35.47-4.38-3.95-9.1-8.34-10.12-14.46,2.56,1.92,5.15,2.62,8.14,1.15C43.57,2.16,45.5-.14,45.63,0c.09.09.24.98.71,1.46,3.46,3.58,7.67,4.6,11.83,1.43.77,6.44,5.19,8.59,11.09,6.27.27,4.65,4.54,6.42,8.68,6.51-5.68,6.06-14.25,7.98-22.17,5.55.94,2.04,1.87,3.69,2.53,5.9,5.31,17.77-5.14,31.41-10.11,47.02-1.96,6.16-4.79,17.48,3.95,19.4l4.59-1.71c-1.7,3.18-2.99,6.24-6.09,8.37l-3.54,1.51c11.16-.98,11.28-14,13.63-22.27,10.65-37.52,58.19-30.79,66.06,5.98,5.93,27.7-5.06,55.06-27.15,71.96-.38.29-.93,1.3-1.44.49,15.59-14.76,26.98-40.3,19.17-61.59-6.76-18.42-26.04-20.48-42.79-15.29-.12.85,1.09.48,1.62.42,8.12-.88,14.38-1.86,22.46.8,19.21,6.33,19.5,29.87,14.34,46.12-2.21,6.94-5.72,13.63-9.75,19.66l4.82-13.01c2.63-10.65,2.02-23.1-4.19-32.45-7.57-11.41-20.6-12.86-31.72-5.39,2.42-.09,4.53-1.5,7.13-2.03,20.41-4.14,28.54,15.88,27.11,32.9l-.98,4.56h0ZM43.07,25.01c3.28,1.09,4.4-3.78,1.25-4.21-2.39-.32-3.41,3.49-1.25,4.21ZM22.99,61.22h0c-.11.85,1.09.45,1.68.48,14.78.66,19.8-12.51,20.97-25.06l-3.76,11.42c-3.63,7.73-10.07,12.93-18.89,13.17h0ZM13.35,81.47c-2.92,12.71-2,26.63,8.67,35.44,4.55,3.75,11.46,6.93,17.37,7.22-10.19-3.37-18.92-9.63-23.23-19.68-.96-2.24-2.81-7.47-2.81-9.72,0-3.61-.21-7.53,0-11.09,0-.33,1.27-2.07,0-2.17Z" />
+          </svg>
           <div>
             <h1 
-              className="text-lg font-bold tracking-tight text-white flex items-center gap-1.5"
-              style={{ fontFamily: "'Berkshire Swash', serif" }}
+              className="font-bold tracking-tight text-white flex items-center gap-1.5"
+              style={{ 
+                fontFamily: "'Berkshire Swash', serif",
+                fontSize: 'calc(1.125rem * var(--logo-scale))'
+              }}
             >
               GrowinStones
               <span className="text-[9px] font-mono tracking-widest font-bold text-accent-500 bg-accent-500/10 px-2 py-0.5 rounded uppercase select-none animate-pulse">ADMIN</span>
@@ -1083,6 +1090,35 @@ export default function AdminDashboard() {
                         </button>
                       </div>
 
+                    </div>
+                  </div>
+
+                  {/* 5. LOGO AND TITLE SIZE SELECTOR */}
+                  <div className="border-t border-white/5 pt-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">5. Tamanho do Logo & Título</h3>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 space-y-3">
+                      <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 uppercase">
+                        <span>Escala do Cabeçalho</span>
+                        <span className="text-accent-400 font-bold">{(logoScale * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[10px] text-slate-500 font-mono uppercase font-bold">Pequeno</span>
+                        <input 
+                          type="range" 
+                          min="0.70" 
+                          max="1.80" 
+                          step="0.05" 
+                          value={logoScale}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setLogoScale(val);
+                            localStorage.setItem('logo_scale', val.toString());
+                            document.documentElement.style.setProperty('--logo-scale', val.toString());
+                          }}
+                          className="w-full accent-accent-500 cursor-pointer h-1 bg-slate-900 rounded-lg appearance-none"
+                        />
+                        <span className="text-[10px] text-slate-500 font-mono uppercase font-bold">Grande</span>
+                      </div>
                     </div>
                   </div>
 
