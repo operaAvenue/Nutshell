@@ -13,7 +13,7 @@
 #include <time.h>
 #include <ESPmDNS.h>
 
-#define FIRMWARE_VERSION "v1.0.6"
+#define FIRMWARE_VERSION "v1.0.7"
 
 // Default network credentials
 const char* DEFAULT_WIFI_SSID = "";
@@ -36,6 +36,9 @@ String mqttUser = "";
 String mqttPass = "";
 String macStr = "";
 String deviceHostname = "nutshell";
+String cachedSsid = "";
+String cachedRole = "principal";
+int cachedServoIndex = 1;
 
 bool shouldRestart = false;
 unsigned long restartTime = 0;
@@ -392,6 +395,10 @@ void setupWiFi() {
   int servoIndex = preferences.getInt("servo_index", 1);
   preferences.end();
 
+  cachedSsid = ssid;
+  cachedRole = role;
+  cachedServoIndex = servoIndex;
+
   String apSsid = "Nutshell-Setup";
   if (role == "servo") {
     char indexStr[16];
@@ -679,11 +686,9 @@ void setup() {
     ddnsObj["token"] = ddnsToken;
     ddnsObj["port"] = ddnsExternalPort;
     
-    preferences.begin("wifi", true);
-    doc["ssid"] = preferences.getString("ssid", DEFAULT_WIFI_SSID);
-    doc["role"] = preferences.getString("role", "principal");
-    doc["servoIndex"] = preferences.getInt("servo_index", 1);
-    preferences.end();
+    doc["ssid"] = cachedSsid;
+    doc["role"] = cachedRole;
+    doc["servoIndex"] = cachedServoIndex;
     
     JsonArray pinsArray = doc["pins"].to<JsonArray>();
     for (size_t i = 0; i < pins.size(); i++) {
@@ -1005,6 +1010,10 @@ void setup() {
           preferences.putInt("servo_index", servo_index);
           preferences.end();
           
+          cachedSsid = ssid;
+          cachedRole = role;
+          cachedServoIndex = servo_index;
+          
           saveNetwork(ssid, pass);
           
           AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
@@ -1193,14 +1202,17 @@ void setup() {
   });
 
   // Serve static files from LittleFS
-  server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+  server.serveStatic("/assets", LittleFS, "/assets", "public, max-age=31536000");
+  server.serveStatic("/", LittleFS, "/", "no-store, must-revalidate").setDefaultFile("index.html");
 
   server.onNotFound([](AsyncWebServerRequest *request) {
     if (request->method() == HTTP_OPTIONS) {
       request->send(200);
     } else {
-      // Return index.html for client-side routing like /admin
-      request->send(LittleFS, "/index.html", "text/html");
+      // Return index.html with no-cache header for client-side routing like /admin
+      AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/index.html", "text/html");
+      response->addHeader("Cache-Control", "no-store, must-revalidate");
+      request->send(response);
     }
   });
 
