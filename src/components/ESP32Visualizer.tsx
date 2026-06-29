@@ -25,7 +25,7 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
       case 'ANALOG_INPUT':
         return 'bg-purple-600 text-white ring-4 ring-purple-500/30';
       case 'PWM_OUTPUT':
-        return 'bg-cyan-500 text-white ring-4 ring-cyan-400/30';
+        return 'bg-accent-500 text-white ring-4 ring-accent-400/30';
       default:
         return 'bg-neutral-800 text-neutral-450 hover:bg-neutral-750';
     }
@@ -39,7 +39,7 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
   };
 
   return (
-    <div id="esp32-visual-board" className="relative flex flex-col items-center select-none py-6 px-4 bg-[#1C1F2B] rounded-3xl border border-white/5 shadow-inner backdrop-blur-md">
+    <div id="esp32-visual-board" className="relative flex flex-col items-center select-none py-6 px-4 glass-card rounded-3xl border border-white/5 shadow-inner backdrop-blur-md">
       {/* Wifi & Power Status Bar on the board */}
       <div className="absolute top-4 left-6 right-6 flex justify-between text-[10px] uppercase font-mono tracking-wider text-slate-400">
         <span className="flex items-center gap-1.5 font-bold">
@@ -47,7 +47,7 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
           ESP32-PWR
         </span>
         <span className="flex items-center gap-1.5 font-bold">
-          <span className="h-2 w-2 rounded-full bg-cyan-500" />
+          <span className="h-2 w-2 rounded-full bg-accent-500" />
           Wi-Fi: {wifiMode === 'AP' ? 'A.P.' : 'STATION'}
         </span>
       </div>
@@ -94,8 +94,8 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
                   )}
                 </div>
                 <div className={`w-9 sm:w-14 shrink-0 text-center py-1 rounded text-[7px] sm:text-[8px] font-bold tracking-tighter ${
-                  isSelected ? 'ring-2 ring-cyan-500 bg-cyan-600/30 text-white' : 
-                  status ? getModeColorClass(status.mode, status.value) : 'bg-[#12141C] border border-white/5 text-slate-500'
+                  isSelected ? 'ring-2 ring-accent-500 bg-accent-600/30 text-white' : 
+                  status ? getModeColorClass(status.mode, status.value) : 'bg-black/30 border border-white/5 text-slate-500'
                 }`}>
                   {item.pin.replace("GPIO ", "G")}
                 </div>
@@ -105,20 +105,20 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
         </div>
 
         {/* CORE CHIP BODY */}
-        <div className="relative bg-[#12141C] rounded-xl border border-[#252833] shadow-xl flex flex-col items-center py-4 px-1.5 sm:px-2 my-2 min-h-[360px] sm:min-h-[380px] w-[100px] sm:w-auto mx-auto">
+        <div className="relative bg-black/20 backdrop-blur-md rounded-xl border border-white/10 shadow-xl flex flex-col items-center py-4 px-1.5 sm:px-2 my-2 min-h-[360px] sm:min-h-[380px] w-[100px] sm:w-auto mx-auto">
           {/* Microcontroller CPU Module (ESP-WROOM-32) */}
-          <div className="w-20 sm:w-24 bg-[#252936] border border-white/5 p-2 rounded-lg flex flex-col items-center mt-3 text-slate-400 text-center shadow-inner">
+          <div className="w-20 sm:w-24 bg-white/5 backdrop-blur-sm border border-white/5 p-2 rounded-lg flex flex-col items-center mt-3 text-slate-400 text-center shadow-inner">
             <Radio className="w-5 h-5 text-slate-500 animate-pulse mb-1 mt-1" />
             <span className="text-[8px] font-bold text-slate-300">ESP-WROOM-32</span>
-            <div className="w-16 h-0.5 bg-[#12141C] my-1 rounded" />
-            <Cpu className="w-4 h-4 text-cyan-500/60 mb-0.5" />
+            <div className="w-16 h-0.5 bg-black/50 my-1 rounded" />
+            <Cpu className="w-4 h-4 text-accent-500/60 mb-0.5" />
             <span className="text-[6px] tracking-tight text-slate-500 font-mono">Dual Core 240MHz</span>
           </div>
 
           {/* USB Port Detail at the bottom */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-7 bg-[#090A0D] border-t border-x border-[#252833] rounded-t-md flex items-center justify-center">
-            <div className="w-6 h-3 bg-[#12141C] border border-[#252833] rounded-sm flex items-center justify-center">
-              <span className="text-[5px] text-slate-600 font-bold">USB</span>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-7 bg-black/40 border-t border-x border-white/10 rounded-t-md flex items-center justify-center">
+            <div className="w-6 h-3 bg-white/5 border border-white/10 rounded-sm flex items-center justify-center">
+              <span className="text-[5px] text-slate-400 font-bold">USB</span>
             </div>
           </div>
 
@@ -131,7 +131,7 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
                 const ledPin = pins.find(p => p.gpio === 2);
                 const isOn = ledPin && ledPin.value > 0;
                 return (
-                  <div className={`w-2.5 h-2.5 rounded-full shadow-md transition-all duration-300 ${isOn ? 'bg-cyan-500 shadow-cyan-500/60 animate-pulse scale-110' : 'bg-neutral-800'}`} />
+                  <div className={`w-2.5 h-2.5 rounded-full shadow-md transition-all duration-300 ${isOn ? 'bg-accent-500 shadow-accent-500/60 animate-pulse scale-110' : 'bg-neutral-800'}`} />
                 );
               })()}
             </div>
@@ -144,9 +144,9 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
           </div>
 
           {/* Central Logo Accents */}
-          <div className="mt-8 flex flex-col items-center opacity-35 select-none">
-            <Zap className="w-6 h-6 text-yellow-500" />
-            <span className="text-[6px] uppercase tracking-widest text-[#252833] font-bold mt-1">SILI-CHIP</span>
+          <div className="mt-8 flex flex-col items-center opacity-60 select-none">
+            <img src="/logo.svg" alt="Chip Logo" className="w-8 h-8 drop-shadow-md" />
+            <span className="text-[6px] uppercase tracking-widest text-[#3b4154] font-bold mt-1">OPEN-AGRO</span>
           </div>
         </div>
 
@@ -171,8 +171,8 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
                 }}
               >
                 <div className={`w-9 sm:w-14 shrink-0 text-center py-1 rounded text-[7px] sm:text-[8px] font-bold tracking-tighter ${
-                  isSelected ? 'ring-2 ring-cyan-500 bg-cyan-600/30 text-white' : 
-                  status ? getModeColorClass(status.mode, status.value) : 'bg-[#12141C] border border-white/5 text-slate-500'
+                  isSelected ? 'ring-2 ring-accent-500 bg-accent-600/30 text-white' : 
+                  status ? getModeColorClass(status.mode, status.value) : 'bg-black/30 border border-white/5 text-slate-500'
                 }`}>
                   {item.pin.replace("GPIO ", "G")}
                 </div>
@@ -198,7 +198,7 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
       {/* Floating Info Tooltip */}
       <div className="mt-4 w-full text-center h-5">
         {hoveredPin ? (
-          <p className="text-[9.5px] text-cyan-400 bg-cyan-500/10 border border-cyan-500/25 py-0.5 px-3 rounded-md inline-block">
+          <p className="text-[9.5px] text-accent-400 bg-accent-500/10 border border-accent-500/25 py-0.5 px-3 rounded-md inline-block">
             <span className="font-bold">{hoveredPin.pin}:</span> {hoveredPin.desc}
           </p>
         ) : (
@@ -219,8 +219,8 @@ export default function ESP32Visualizer({ pins, wifiMode, onSelectPin, selectedG
         <div className="flex items-center gap-1 text-purple-450">
           <span className="w-2 h-2 rounded bg-purple-600 inline-block" /> Analog (ADC)
         </div>
-        <div className="flex items-center gap-1 text-cyan-450">
-          <span className="w-2 h-2 rounded bg-cyan-500 inline-block" /> PWM Reg
+        <div className="flex items-center gap-1 text-accent-400">
+          <span className="w-2 h-2 rounded bg-accent-500 inline-block" /> PWM Reg
         </div>
       </div>
     </div>

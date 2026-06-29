@@ -243,7 +243,7 @@ void loop() {
           onClick={() => setSubTab('CODE')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             subTab === 'CODE'
-              ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+              ? 'bg-accent-500 text-slate-950 shadow-[0_0_12px_var(--color-accent-glow)]'
               : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
         >
@@ -255,7 +255,7 @@ void loop() {
           onClick={() => setSubTab('OTA')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
             subTab === 'OTA'
-              ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+              ? 'bg-accent-500 text-slate-950 shadow-[0_0_12px_var(--color-accent-glow)]'
               : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
           }`}
         >
@@ -269,7 +269,7 @@ void loop() {
           {/* Introduction Card */}
           <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="w-4 h-4 text-cyan-400" />
+              <BookOpen className="w-4 h-4 text-accent-400" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-300">Como instalar no ESP32</h4>
             </div>
             <p className="text-neutral-400 text-xs leading-relaxed max-w-2xl">
@@ -279,21 +279,21 @@ void loop() {
             {/* Steps Guide */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-5">
               <div className="glass-panel p-3.5 rounded-2xl border border-white/5 shadow-inner">
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-cyan-400">PASSO 1</span>
+                <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-accent-400">PASSO 1</span>
                 <h5 className="font-bold text-[11px] text-slate-200 mt-2">Compilar a Interface</h5>
                 <p className="text-[9.5px] text-slate-500 mt-1 leading-normal">
                   Execute <code className="glass-card text-slate-400 px-1 py-0.5 rounded">npm run build</code> para gerar arquivos unificados de baixo footprint na pasta <code className="text-slate-400">dist/</code>.
                 </p>
               </div>
               <div className="glass-panel p-3.5 rounded-2xl border border-white/5 shadow-inner">
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-cyan-400">PASSO 2</span>
+                <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-accent-400">PASSO 2</span>
                 <h5 className="font-bold text-[11px] text-slate-200 mt-2">Gzip & Preparação</h5>
                 <p className="text-[9.5px] text-slate-550 mt-1 leading-normal">
-                  Comprima o HTML buildado para <code className="text-slate-450 font-mono">.gz</code>. Isso reduz seu peso para cerca de <strong className="text-cyan-400 font-bold">22KB</strong>, ocupando pouquíssimo espaço!
+                  Comprima o HTML buildado para <code className="text-slate-450 font-mono">.gz</code>. Isso reduz seu peso para cerca de <strong className="text-accent-400 font-bold">22KB</strong>, ocupando pouquíssimo espaço!
                 </p>
               </div>
               <div className="glass-panel p-3.5 rounded-2xl border border-white/5 shadow-inner">
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-cyan-400">PASSO 3</span>
+                <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-[#252936] border border-white/5 rounded-lg text-accent-400">PASSO 3</span>
                 <h5 className="font-bold text-[11px] text-slate-200 mt-2">Gravação Arduino</h5>
                 <p className="text-[9.5px] text-slate-500 mt-1 leading-normal">
                   Copie o código C++ abaixo e faça o upload no seu ESP32 usando a IDE clássica ou VSCode PlatformIO.
@@ -307,21 +307,21 @@ void loop() {
             <div className="flex justify-between items-center pb-3 border-b border-[#252833]/60 mb-4 flex-wrap gap-2">
               {/* Tabs for select flashing architecture */}
               <div className="flex items-center gap-3">
-                <FileCode className="w-4 h-4 text-cyan-400" />
+                <FileCode className="w-4 h-4 text-accent-400" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mr-2">Código Firmware Arduino</h4>
                 
                 <div className="flex glass-panel p-1 rounded-xl border border-white/5">
                   <button 
                     type="button"
                     onClick={() => setExportMethod('PROGMEM')}
-                    className={`text-[9.5px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${exportMethod === 'PROGMEM' ? 'bg-cyan-500 text-slate-950 font-mono font-bold' : 'text-slate-500 hover:text-slate-350'}`}
+                    className={`text-[9.5px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${exportMethod === 'PROGMEM' ? 'bg-accent-500 text-slate-950 font-mono font-bold' : 'text-slate-500 hover:text-slate-350'}`}
                   >
                     PROGMEM (Inline Flash)
                   </button>
                   <button 
                     type="button"
                     onClick={() => setExportMethod('LITTLEFS')}
-                    className={`text-[9.5px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${exportMethod === 'LITTLEFS' ? 'bg-cyan-500 text-slate-950 font-mono font-bold' : 'text-slate-500 hover:text-slate-355'}`}
+                    className={`text-[9.5px] font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${exportMethod === 'LITTLEFS' ? 'bg-accent-500 text-slate-950 font-mono font-bold' : 'text-slate-500 hover:text-slate-355'}`}
                   >
                     LittleFS Partition
                   </button>
@@ -333,7 +333,7 @@ void loop() {
                 onClick={() => copyCodeToClipboard(generateArduinoCode())}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[10.5px] font-bold glass-panel hover:bg-[#252936] border border-white/5 hover:border-slate-700 text-slate-300 transition-all active:scale-95 cursor-pointer"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Clipboard className="w-3.5 h-3.5 text-cyan-400" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Clipboard className="w-3.5 h-3.5 text-accent-400" />}
                 {copied ? 'Copiado!' : 'Copiar C++'}
               </button>
             </div>
@@ -351,14 +351,14 @@ void loop() {
 
             {/* Code display window */}
             <div className="relative glass-panel rounded-2xl border border-white/5 max-h-[380px] overflow-auto shadow-inner">
-              <pre className="p-4 text-[10px] font-mono text-slate-400 leading-normal whitespace-pre selection:bg-cyan-500 selection:text-slate-950">
+              <pre className="p-4 text-[10px] font-mono text-slate-400 leading-normal whitespace-pre selection:bg-accent-500 selection:text-slate-950">
                 {generateArduinoCode()}
               </pre>
             </div>
 
             <div className="flex justify-between items-center text-[9px] font-mono text-slate-500 mt-3">
               <span className="flex items-center gap-1">
-                <Cpu className="w-3 h-3 text-cyan-500 animate-pulse" />
+                <Cpu className="w-3 h-3 text-accent-500 animate-pulse" />
                 Configuração Dinâmica baseada nos pinos em uso
               </span>
               <span>BaudRate sugerido: 115200 bps</span>

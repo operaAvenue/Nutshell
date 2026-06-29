@@ -14,7 +14,9 @@ export const DEFAULT_WIFI_SETTINGS: WiFiSettings = {
   mode: "AP",
   apSsid: "ESP32_Controler_P2P",
   apIp: "192.168.4.1",
-  staIp: "192.168.1.100"
+  staIp: "192.168.1.100",
+  role: "principal",
+  servoIndex: 1
 };
 
 export const LEFT_PIN_RAIL = [

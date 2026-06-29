@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { INITIAL_PINS, INITIAL_NODES, DEFAULT_WIFI_SETTINGS } from '../data';
-import { ESP32Pin, ESP32Node, WiFiSettings, SerialLog } from '../types';
+import { ESP32Pin, ESP32Node, WiFiSettings, SerialLog, PinMode } from '../types';
 import ESP32Visualizer from './ESP32Visualizer';
 import PinController from './PinController';
 import NodeMonitor from './NodeMonitor';
@@ -22,19 +22,25 @@ import {
   ChevronRight,
   Tv,
   Network,
-  CloudDownload
+  CloudDownload,
+  Palette
 } from 'lucide-react';
 
 import { MQTTSettings } from '../types';
+
+import { applyCustomTheme, resetTheme } from '../utils/theme';
 
 export default function AdminDashboard() {
   // Core application States
 
   const [wifiSettings, setWifiSettings] = useState<WiFiSettings>(DEFAULT_WIFI_SETTINGS);
   const [mqttSettings, setMqttSettings] = useState<MQTTSettings>({ server: '', port: 1883, user: '', pass: '' });
+  const [ddnsSettings, setDdnsSettings] = useState({ enabled: false, domain: '', token: '', port: 80 });
   const [nodes, setNodes] = useState<ESP32Node[]>(INITIAL_NODES);
-  const [activeTab, setActiveTab] = useState<'CONTROLS' | 'MESH' | 'FIRMWARE' | 'MQTT' | 'OTA'>('CONTROLS');
+  const [activeTab, setActiveTab] = useState<'CONTROLS' | 'MESH' | 'FIRMWARE' | 'MQTT' | 'OTA' | 'DDNS' | 'THEME'>('CONTROLS');
   const [mobileDashboardView, setMobileDashboardView] = useState<'VISUAL' | 'CONTROLS'>('VISUAL');
+  const lastReorderTime = useRef<number>(0);
+  const ddnsLoaded = useRef<boolean>(false);
   
   // Simulated logs buffer
   const [logs, setLogs] = useState<SerialLog[]>([
@@ -136,6 +142,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleReorderPins = async (newPins: ESP32Pin[]) => {
+    lastReorderTime.current = Date.now();
+    // Optimistic UI update
+    setPins(newPins);
+    
+    const gpioOrder = newPins.map(p => p.gpio);
+    try {
+      const res = await fetch('/api/pins/reorder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+        },
+        body: JSON.stringify(gpioOrder)
+      });
+      if (res.ok) {
+        addLog('SYSTEM', 'Ordem dos pinos salva com sucesso.');
+      } else {
+        const txt = await res.text().catch(() => '');
+        addLog('ERROR', `Erro ao salvar a ordem dos pinos (Status: ${res.status}). ${txt}`);
+      }
+    } catch(err: any) {
+      addLog('ERROR', `Falha de rede ao salvar a nova ordem: ${err.message}`);
+    }
+  };
+
   const handleSelectPinByGpio = (gpio: number) => {
     setSelectedGpio(gpio);
   };
@@ -184,19 +216,35 @@ export default function AdminDashboard() {
           staIp: data.ip,
           apSsid: 'ESP32-Dashboard',
           apIp: '192.168.4.1',
-          mode: data.wifiMode as 'STA' | 'AP'
+          mode: data.wifiMode as 'STA' | 'AP',
+          role: data.role || 'principal',
+          servoIndex: data.servoIndex || 1
         });
         
         if (data.pins && Array.isArray(data.pins)) {
           setPins(prevPins => {
-            // Merge uncommitted changes with server state to prevent UI flicker
-            return data.pins.map((serverPin: ESP32Pin) => {
-              if (uncommittedPins[serverPin.gpio]) {
+            const isRecentReorder = Date.now() - lastReorderTime.current < 5000;
+            const orderToUse = isRecentReorder ? prevPins.map(p => p.gpio) : data.pins.map((p: any) => p.gpio);
+            const pinMap = new Map(data.pins.map((p: any) => [p.gpio, p]));
+
+            return orderToUse.map(gpio => {
+              const serverPin = pinMap.get(gpio) || prevPins.find(p => p.gpio === gpio);
+              if (serverPin && uncommittedPins[serverPin.gpio]) {
                 return uncommittedPins[serverPin.gpio];
               }
               return serverPin;
-            });
+            }).filter(Boolean) as ESP32Pin[];
           });
+        }
+        
+        if (data.ddns && !ddnsLoaded.current) {
+          setDdnsSettings({
+            enabled: data.ddns.enabled || false,
+            domain: data.ddns.domain || '',
+            token: data.ddns.token || '',
+            port: data.ddns.port || 80
+          });
+          ddnsLoaded.current = true;
         }
       } catch (err) {
         // console.error(err);
@@ -264,6 +312,16 @@ export default function AdminDashboard() {
   const [showWifiModal, setShowWifiModal] = useState(false);
   const [wifiInputSsid, setWifiInputSsid] = useState('');
   const [wifiInputPass, setWifiInputPass] = useState('');
+  const [wifiInputRole, setWifiInputRole] = useState<'principal' | 'servo'>('principal');
+  const [wifiInputServoIndex, setWifiInputServoIndex] = useState<number>(1);
+
+  const handleOpenWifiModal = () => {
+    setWifiInputSsid(wifiSettings.ssid === 'Desconhecido' ? '' : wifiSettings.ssid);
+    setWifiInputRole(wifiSettings.role || 'principal');
+    setWifiInputServoIndex(wifiSettings.servoIndex || 1);
+    setWifiInputPass('');
+    setShowWifiModal(true);
+  };
 
   const submitWifiConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,8 +329,16 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/wifi', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ssid: wifiInputSsid, pass: wifiInputPass })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+        },
+        body: JSON.stringify({ 
+          ssid: wifiInputSsid, 
+          pass: wifiInputPass,
+          role: wifiInputRole,
+          servo_index: wifiInputServoIndex
+        })
       });
       if (res.ok) {
         addLog('WIFI', 'Credenciais salvas! O ESP32 irá reiniciar em 1 segundo.');
@@ -282,8 +348,8 @@ export default function AdminDashboard() {
       } else {
         addLog('ERROR', 'Erro ao salvar credenciais.');
       }
-    } catch (err) {
-      addLog('ERROR', 'Falha na comunicação com /api/wifi');
+    } catch(err: any) {
+      addLog('ERROR', `Falha de rede ao salvar WiFi: ${err.message}`);
     }
   };
 
@@ -309,22 +375,52 @@ export default function AdminDashboard() {
     }
   };
 
+  const submitDdnsConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    addLog('SYSTEM', `Salvando configuração DDNS...`);
+    try {
+      const res = await fetch('/api/ddns', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+        },
+        body: JSON.stringify(ddnsSettings)
+      });
+      if (res.ok) {
+        addLog('SYSTEM', 'Configuração DDNS salva com sucesso!');
+      } else {
+        const text = await res.text();
+        addLog('ERROR', `Erro ao salvar DDNS (${res.status}): ${text}`);
+      }
+    } catch (err: any) {
+      addLog('ERROR', `Falha na comunicação com /api/ddns: ${err.message}`);
+    }
+  };
+
   return (
     <div id="main-panel" className="min-h-screen text-slate-200 font-sans flex flex-col justify-between antialiased">
       
       {/* BACKGROUND AMBIENT DETAILS */}
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-cyan-900/10 via-slate-900/5 to-transparent pointer-events-none select-none" />
+      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-accent-900/10 via-slate-900/5 to-transparent pointer-events-none select-none" />
 
       {/* HEADER BAR */}
       <header className="relative border-b border-[#252833]/60 glass-panel backdrop-blur-md px-6 py-4.5 flex justify-between items-center z-20">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 border border-cyan-500/20 bg-cyan-600/10 text-cyan-400 rounded-2xl">
-            <Cpu className="w-5 h-5 animate-pulse" />
+          <div className="p-2 border border-accent-500/20 bg-accent-600/10 text-accent-400 rounded-2xl flex items-center justify-center">
+            <img 
+              src="/logo.svg" 
+              alt="Logo"
+              className="w-5 h-5 animate-pulse"
+            />
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5 font-sans">
-              openAgro.ai
-              <span className="text-[9px] font-mono tracking-widest font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded uppercase select-none animate-pulse">ADMIN</span>
+            <h1 
+              className="text-lg font-bold tracking-tight text-white flex items-center gap-1.5"
+              style={{ fontFamily: "'Berkshire Swash', serif" }}
+            >
+              GrowinStones
+              <span className="text-[9px] font-mono tracking-widest font-bold text-accent-500 bg-accent-500/10 px-2 py-0.5 rounded uppercase select-none animate-pulse">ADMIN</span>
             </h1>
             <p className="text-[10px] font-mono text-slate-500 mt-0.5">Controlador Wi-Fi nativo de alta eficiência</p>
           </div>
@@ -332,10 +428,11 @@ export default function AdminDashboard() {
 
         {/* Dynamic network indicators */}
         <div className="flex items-center gap-3.5">
+
           <div className="hidden sm:flex items-center gap-2 glass-panel border border-white/5 py-1.5 px-3.5 rounded-2xl font-mono text-[9.5px] select-none text-slate-400">
             <Radio className="w-3.5 h-3.5 text-slate-500" />
             <span>Pino selecionado: </span>
-            <span className="font-bold text-cyan-400">G{selectedPin.gpio}</span>
+            <span className="font-bold text-accent-400">G{selectedPin.gpio}</span>
           </div>
         </div>
       </header>
@@ -350,28 +447,29 @@ export default function AdminDashboard() {
                 <div className={`p-2.5 rounded-2xl border select-none transition-all ${
                   wifiSettings.mode === 'AP' 
                     ? 'bg-emerald-950/40 border-emerald-900/50 text-emerald-400' 
-                    : 'bg-cyan-950/40 border-cyan-900/50 text-cyan-400'
+                    : 'bg-accent-950/40 border-accent-900/50 text-accent-400'
                 }`}>
                   <Wifi className="w-5 h-5 animate-pulse" />
                 </div>
                 <div className="flex flex-col select-all">
                   <span className="text-xs font-bold text-slate-200">
-                    SSID: {wifiSettings.mode === 'AP' ? wifiSettings.apSsid : wifiSettings.ssid}
+                    {wifiSettings.role === 'servo' ? `Servo Melkweg-${String(wifiSettings.servoIndex).padStart(3, '0')}` : 'Principal Nutshell'}
+                    <span className="text-slate-500 font-normal ml-2">({wifiSettings.mode === 'AP' ? wifiSettings.apSsid : wifiSettings.ssid})</span>
                   </span>
                   <span className="text-[10px] font-mono text-slate-500 mt-0.5">
-                    Endereço IP: <strong className="text-cyan-500 font-bold">{wifiSettings.mode === 'AP' ? wifiSettings.apIp : wifiSettings.staIp}</strong>
+                    Endereço IP: <strong className="text-accent-500 font-bold">{wifiSettings.mode === 'AP' ? wifiSettings.apIp : wifiSettings.staIp}</strong>
                   </span>
                 </div>
               </div>
 
               <div className="flex flex-col items-end gap-2">
                 <button 
-                  onClick={() => setShowWifiModal(true)}
-                  className="text-[9.5px] font-bold text-white hover:text-cyan-400 uppercase tracking-wider font-mono cursor-pointer py-1 px-3 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/50 rounded-xl transition-all"
+                  onClick={handleOpenWifiModal}
+                  className="text-[9.5px] font-bold text-white hover:text-accent-400 uppercase tracking-wider font-mono cursor-pointer py-1 px-3 bg-accent-600/20 hover:bg-accent-600/40 border border-accent-500/50 rounded-xl transition-all"
                 >
                   Configurar Wi-Fi
                 </button>
-                <div className="text-[9.5px] font-bold text-cyan-500 uppercase tracking-wider font-mono py-1 px-3 glass-panel border border-white/5 rounded-xl">
+                <div className="text-[9.5px] font-bold text-accent-500 uppercase tracking-wider font-mono py-1 px-3 glass-panel border border-white/5 rounded-xl">
                   Reg: {wifiSettings.mode}
                 </div>
               </div>
@@ -379,10 +477,10 @@ export default function AdminDashboard() {
 
             {/* WIFI MODAL */}
             {showWifiModal && (
-              <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                <form onSubmit={submitWifiConfig} className="glass-panel border border-cyan-500/30 p-5 rounded-2xl w-full max-w-sm shadow-2xl">
+              <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <form onSubmit={submitWifiConfig} className="glass-panel border border-accent-500/30 p-5 rounded-2xl w-full max-w-sm shadow-2xl">
                   <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Wifi className="w-4 h-4 text-cyan-400" /> Configurar Nova Rede
+                    <Wifi className="w-4 h-4 text-accent-400" /> Configurar Nova Rede
                   </h3>
                   <div className="flex flex-col gap-3 mb-4">
                     <div>
@@ -391,7 +489,7 @@ export default function AdminDashboard() {
                         type="text" 
                         value={wifiInputSsid}
                         onChange={(e) => setWifiInputSsid(e.target.value)}
-                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50 bg-[#15171e]"
                         placeholder="Minha_Casa_5G"
                         required 
                       />
@@ -402,26 +500,53 @@ export default function AdminDashboard() {
                         type="password" 
                         value={wifiInputPass}
                         onChange={(e) => setWifiInputPass(e.target.value)}
-                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50 bg-[#15171e]"
                         placeholder="••••••••"
                         required 
                       />
                     </div>
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-400 block mb-1">Função do Dispositivo</label>
+                      <select 
+                        value={wifiInputRole}
+                        onChange={(e) => setWifiInputRole(e.target.value as 'principal' | 'servo')}
+                        className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50 bg-[#15171e]"
+                      >
+                        <option value="principal" className="bg-[#15171e] text-white">Principal (Nutshell)</option>
+                        <option value="servo" className="bg-[#15171e] text-white">Servo (Melkweg)</option>
+                      </select>
+                    </div>
+                    {wifiInputRole === 'servo' && (
+                      <div>
+                        <label className="text-[10px] font-mono text-slate-400 block mb-1">Índice do Servo</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          max="999"
+                          value={wifiInputServoIndex}
+                          onChange={(e) => setWifiInputServoIndex(parseInt(e.target.value) || 1)}
+                          className="w-full glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50 bg-[#15171e]"
+                          required 
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2 mt-5">
                     <button type="button" onClick={() => setShowWifiModal(false)} className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all">Cancelar</button>
-                    <button type="submit" className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 text-black hover:bg-cyan-400 transition-all">Salvar e Reiniciar</button>
+                    <button type="submit" className="px-4 py-2 rounded-xl text-xs font-bold bg-accent-500 text-black hover:bg-accent-400 transition-all">Salvar e Reiniciar</button>
                   </div>
                 </form>
               </div>
             )}
 
             {/* TAB SELECTOR NAV */}
-            <nav className="grid grid-cols-5 gap-1 p-1 glass-card rounded-2xl border border-white/5 mb-5 select-none relative z-0 shadow-inner">
+            <nav className="grid grid-cols-7 gap-1 p-1 glass-card rounded-2xl border border-white/5 mb-5 select-none relative z-0 shadow-inner">
               {[
                 { id: 'CONTROLS', icon: Sliders, label: 'Dashboard' },
                 { id: 'MESH', icon: Layers, label: 'Malha' },
                 { id: 'MQTT', icon: Network, label: 'Home Assistant' },
+                { id: 'DDNS', icon: Tv, label: 'Acesso Remoto' },
+                { id: 'THEME', icon: Palette, label: 'Tema & Cores' },
                 { id: 'FIRMWARE', icon: FileCode, label: 'C++ Code' },
                 { id: 'OTA', icon: CloudDownload, label: 'OTA' },
               ].map((tab) => {
@@ -432,13 +557,13 @@ export default function AdminDashboard() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
                     className={`relative py-2 px-1 rounded-xl flex flex-col items-center gap-1 transition-colors cursor-pointer z-10 ${
-                      isActive ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      isActive ? 'text-accent-400 font-bold' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                     }`}
                   >
                     {isActive && (
                       <motion.div
                         layoutId="activeTabBackground"
-                        className="absolute inset-0 glass-panel rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.15)] border border-cyan-500/20 -z-10"
+                        className="absolute inset-0 glass-panel rounded-xl shadow-[0_0_15px_var(--color-accent-glow)] border border-accent-500/20 -z-10"
                         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       />
                     )}
@@ -457,13 +582,13 @@ export default function AdminDashboard() {
                   <div className="flex lg:hidden glass-panel p-1 rounded-xl border border-white/5 mb-4">
                     <button 
                       onClick={() => setMobileDashboardView('VISUAL')}
-                      className={`flex-1 py-2 text-[10.5px] uppercase tracking-wider font-bold rounded-lg transition-all ${mobileDashboardView === 'VISUAL' ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                      className={`flex-1 py-2 text-[10.5px] uppercase tracking-wider font-bold rounded-lg transition-all ${mobileDashboardView === 'VISUAL' ? 'bg-accent-500 text-slate-950 shadow-[0_0_12px_var(--color-accent-glow)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
                     >
                       Placa / Visual
                     </button>
                     <button 
                       onClick={() => setMobileDashboardView('CONTROLS')}
-                      className={`flex-1 py-2 text-[10.5px] uppercase tracking-wider font-bold rounded-lg transition-all ${mobileDashboardView === 'CONTROLS' ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.3)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+                      className={`flex-1 py-2 text-[10.5px] uppercase tracking-wider font-bold rounded-lg transition-all ${mobileDashboardView === 'CONTROLS' ? 'bg-accent-500 text-slate-950 shadow-[0_0_12px_var(--color-accent-glow)]' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
                     >
                       Configurações
                     </button>
@@ -495,6 +620,7 @@ export default function AdminDashboard() {
                         onSelectPinByGpio={handleSelectPinByGpio}
                         onSavePin={handleSavePin}
                         onDeletePin={handleDeletePin}
+                        onReorderPins={handleReorderPins}
                         onAddLog={addLog}
                       />
                     </div>
@@ -515,7 +641,7 @@ export default function AdminDashboard() {
               {activeTab === 'MQTT' && (
                 <div className="glass-card p-6 rounded-2xl border border-white/5">
                   <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
-                    <Network className="w-6 h-6 text-cyan-500" />
+                    <Network className="w-6 h-6 text-accent-500" />
                     Integração Home Assistant (MQTT)
                   </h2>
                   <p className="text-slate-400 text-sm mb-6">
@@ -528,7 +654,7 @@ export default function AdminDashboard() {
                         type="text" 
                         value={mqttSettings.server} 
                         onChange={(e) => setMqttSettings({...mqttSettings, server: e.target.value})}
-                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
                         placeholder="Ex: 192.168.1.100"
                       />
                     </div>
@@ -538,7 +664,7 @@ export default function AdminDashboard() {
                         type="number" 
                         value={mqttSettings.port} 
                         onChange={(e) => setMqttSettings({...mqttSettings, port: parseInt(e.target.value) || 1883})}
-                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
                       />
                     </div>
                     <div className="flex flex-col">
@@ -547,7 +673,7 @@ export default function AdminDashboard() {
                         type="text" 
                         value={mqttSettings.user} 
                         onChange={(e) => setMqttSettings({...mqttSettings, user: e.target.value})}
-                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
                       />
                     </div>
                     <div className="flex flex-col">
@@ -556,15 +682,228 @@ export default function AdminDashboard() {
                         type="password" 
                         value={mqttSettings.pass} 
                         onChange={(e) => setMqttSettings({...mqttSettings, pass: e.target.value})}
-                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-cyan-500/50"
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
                       />
                     </div>
                     <div className="md:col-span-2 flex justify-end mt-4">
-                      <button type="submit" className="px-6 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all">
+                      <button type="submit" className="px-6 py-2 bg-accent-500 hover:bg-accent-400 text-slate-950 font-bold rounded-xl shadow-[0_0_15px_var(--color-accent-glow)] transition-all">
                         Salvar e Conectar
                       </button>
                     </div>
                   </form>
+                </div>
+              )}
+
+              {activeTab === 'DDNS' && (
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                    <Tv className="w-6 h-6 text-accent-500" />
+                    DuckDNS & Acesso Remoto
+                  </h2>
+                  <p className="text-slate-400 text-sm mb-6">
+                    Mantenha o seu ESP32 acessível globalmente configurando a atualização dinâmica de IP via DuckDNS.
+                  </p>
+                  <form onSubmit={submitDdnsConfig} className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+                    <div className="md:col-span-2 flex items-center gap-3 mb-4">
+                      <button 
+                        type="button"
+                        onClick={() => setDdnsSettings({...ddnsSettings, enabled: !ddnsSettings.enabled})}
+                        className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ${ddnsSettings.enabled ? 'bg-accent-500 shadow-[0_0_15px_var(--color-accent-glow)]' : 'bg-[#252936]'} relative`}
+                      >
+                        <div className={`w-6 h-6 rounded-full bg-white shadow-md transform transition-transform duration-300 ${ddnsSettings.enabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                      </button>
+                      <span className="text-sm font-bold uppercase tracking-wider text-slate-300">
+                        Ativar DuckDNS
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-bold">DuckDNS Domain</label>
+                      <input 
+                        type="text" 
+                        value={ddnsSettings.domain} 
+                        onChange={(e) => setDdnsSettings({...ddnsSettings, domain: e.target.value})}
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
+                        placeholder="meuprojeto (sem .duckdns.org)"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-bold">Token DuckDNS</label>
+                      <input 
+                        type="password" 
+                        value={ddnsSettings.token} 
+                        onChange={(e) => setDdnsSettings({...ddnsSettings, token: e.target.value})}
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
+                        placeholder="a1b2c3d4-..."
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-slate-400 mb-1 uppercase tracking-wider font-bold">Porta Externa (Visual)</label>
+                      <input 
+                        type="number" 
+                        value={ddnsSettings.port} 
+                        onChange={(e) => setDdnsSettings({...ddnsSettings, port: parseInt(e.target.value) || 80})}
+                        className="glass-panel border border-[#252833] text-sm px-3 py-2 rounded-xl text-white outline-none focus:border-accent-500/50"
+                        placeholder="80"
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2 bg-[#0A0C10] p-4 rounded-xl border border-white/5 mt-2 flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-mono">Endereço Público Gerado:</span>
+                      <a 
+                        href={`http://${ddnsSettings.domain ? ddnsSettings.domain + '.duckdns.org' : 'meuprojeto.duckdns.org'}${ddnsSettings.port !== 80 ? ':' + ddnsSettings.port : ''}`}
+                        target="_blank" rel="noreferrer"
+                        className="text-sm font-bold text-accent-400 hover:text-accent-300 break-all"
+                      >
+                        http://{ddnsSettings.domain ? ddnsSettings.domain + '.duckdns.org' : 'meuprojeto.duckdns.org'}{ddnsSettings.port !== 80 ? ':' + ddnsSettings.port : ''}
+                      </a>
+                    </div>
+
+                    <div className="md:col-span-2 flex justify-end mt-4">
+                      <button type="submit" className="px-6 py-2 bg-accent-500 hover:bg-accent-400 text-slate-950 font-bold rounded-xl shadow-[0_0_15px_var(--color-accent-glow)] transition-all">
+                        Salvar DuckDNS
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {activeTab === 'THEME' && (
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                    <Palette className="w-6 h-6 text-accent-500" />
+                    Personalização do Painel (Temas e Cores)
+                  </h2>
+                  <p className="text-slate-400 text-sm mb-6">
+                    Selecione um tema de cor para personalizar os destaques, brilhos e contornos do painel. A cor selecionada afeta todo o design do GrowinStones!
+                  </p>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estilos Modernos & Gradientes</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { name: 'Ciano Cyber', color: '#06b6d4' },
+                          { name: 'Indigo Estelar', color: '#6366f1' },
+                          { name: 'Violeta Neon', color: '#8b5cf6' },
+                          { name: 'Rosa Vibrante', color: '#ec4899' },
+                        ].map(item => (
+                          <button
+                            key={item.color}
+                            onClick={() => {
+                              localStorage.setItem('theme', item.color);
+                              applyCustomTheme(item.color);
+                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                            }}
+                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
+                          >
+                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold font-sans">{item.name}</span>
+                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Natureza & Cultivos</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { name: 'Menta Fresca', color: '#10b981' },
+                          { name: 'Verde Esmeralda', color: '#059669' },
+                          { name: 'Verde Floresta', color: '#15803d' },
+                          { name: 'Lima Volt', color: '#84cc16' },
+                        ].map(item => (
+                          <button
+                            key={item.color}
+                            onClick={() => {
+                              localStorage.setItem('theme', item.color);
+                              applyCustomTheme(item.color);
+                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                            }}
+                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
+                          >
+                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold font-sans">{item.name}</span>
+                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tons Quentes & Alertas</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { name: 'Laranja Solar', color: '#f59e0b' },
+                          { name: 'Amarelo Ouro', color: '#ffb703' },
+                          { name: 'Fogo Carmesim', color: '#ef4444' },
+                          { name: 'Rosa Coral', color: '#f43f5e' },
+                        ].map(item => (
+                          <button
+                            key={item.color}
+                            onClick={() => {
+                              localStorage.setItem('theme', item.color);
+                              applyCustomTheme(item.color);
+                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                            }}
+                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
+                          >
+                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold font-sans">{item.name}</span>
+                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Sleek & Ocean</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { name: 'Azul Elétrico', color: '#3b82f6' },
+                          { name: 'Azul Cobalto', color: '#1d4ed8' },
+                          { name: 'Cinza Espacial', color: '#64748b' },
+                          { name: 'Prata Metalizado', color: '#cbd5e1' },
+                        ].map(item => (
+                          <button
+                            key={item.color}
+                            onClick={() => {
+                              localStorage.setItem('theme', item.color);
+                              applyCustomTheme(item.color);
+                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                            }}
+                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
+                          >
+                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold font-sans">{item.name}</span>
+                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4 border-t border-white/5">
+                      <button
+                        onClick={() => {
+                          resetTheme();
+                          localStorage.removeItem('theme');
+                          addLog('SYSTEM', 'Tema resetado para o padrão original (Verde-água).');
+                        }}
+                        className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer border border-white/5"
+                      >
+                        Resetar para o Padrão
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -586,7 +925,7 @@ export default function AdminDashboard() {
             </div>
 
           </div>
-        <div className="mt-8.0 w-full">
+        <div className="mt-28 w-full">
           <LogConsole 
             logs={logs}
             onClearLogs={handleClearLogs}

@@ -10,12 +10,14 @@
 #include <HTTPUpdate.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <time.h>
+#include <ESPmDNS.h>
 
 #define FIRMWARE_VERSION "v1.0.2"
 
 // Default network credentials
-const char* DEFAULT_WIFI_SSID = "YOUR_WIFI_SSID";
-const char* DEFAULT_WIFI_PASS = "YOUR_WIFI_PASSWORD";
+const char* DEFAULT_WIFI_SSID = "";
+const char* DEFAULT_WIFI_PASS = "";
 
 // Access Point credentials (fallback)
 const char* AP_SSID = "ESP32-Dashboard";
@@ -33,6 +35,7 @@ int mqttPort = 1883;
 String mqttUser = "";
 String mqttPass = "";
 String macStr = "";
+String deviceHostname = "nutshell";
 
 bool shouldRestart = false;
 unsigned long restartTime = 0;
@@ -45,6 +48,25 @@ bool autoUpdateEnabled = false;
 unsigned long lastAutoUpdateCheck = 0;
 const unsigned long AUTO_UPDATE_INTERVAL = 12 * 60 * 60 * 1000; // 12 horas
 
+bool ddnsEnabled = false;
+String ddnsDomain = "";
+String ddnsToken = "";
+int ddnsExternalPort = 80;
+unsigned long lastDdnsUpdate = 0;
+const unsigned long DDNS_INTERVAL = 600000; // 10 minutes
+bool pendingDdnsSave = false;
+String globalAdminPass = "admin";
+
+struct DdnsTemp {
+  bool received = false;
+  bool error = false;
+  String errStr = "";
+  bool enabled = false;
+  String domain = "";
+  String token = "";
+  int port = 80;
+} ddnsTemp;
+
 struct PinState {
   int gpio;
   String name;
@@ -54,6 +76,16 @@ struct PinState {
   bool invertLogic;
   float calibOffset;
   float calibMultiplier;
+  bool isSimulated;
+  String cameraUrl;
+  std::vector<int> linkedPins;
+  bool timerEnabled;
+  int timerDurationOn;
+  int timerDurationOff;
+  String timerWindowStart;
+  String timerWindowEnd;
+  unsigned long lastTimerToggle;
+  bool currentTimerState;
 };
 
 std::vector<PinState> pins;
@@ -71,6 +103,19 @@ void savePinsToNVS() {
     obj["invertLogic"] = p.invertLogic;
     obj["calibOffset"] = p.calibOffset;
     obj["calibMultiplier"] = p.calibMultiplier;
+    obj["isSimulated"] = p.isSimulated;
+    obj["cameraUrl"] = p.cameraUrl;
+    JsonArray linkedArr = obj["linkedPins"].to<JsonArray>();
+    for (int lPin : p.linkedPins) {
+      linkedArr.add(lPin);
+    }
+    if (p.mode == "VIRTUAL_BOOLEAN") {
+      obj["timerEnabled"] = p.timerEnabled;
+      obj["timerDurationOn"] = p.timerDurationOn;
+      obj["timerDurationOff"] = p.timerDurationOff;
+      obj["timerWindowStart"] = p.timerWindowStart;
+      obj["timerWindowEnd"] = p.timerWindowEnd;
+    }
   }
   String jsonString;
   serializeJson(doc, jsonString);
@@ -98,10 +143,93 @@ void loadPinsFromNVS() {
       p.value = obj["value"].as<int>();
       p.invertLogic = obj["invertLogic"] | false;
       p.calibOffset = obj["calibOffset"] | 0.0f;
-      p.calibMultiplier = obj["calibMultiplier"] | 0.0f;
+      p.calibMultiplier = obj["calibMultiplier"] | 1.0f;
+      p.isSimulated = obj["isSimulated"] | false;
+      p.cameraUrl = obj["cameraUrl"] | "";
+      p.linkedPins.clear();
+      if (obj.containsKey("linkedPins") && obj["linkedPins"].is<JsonArray>()) {
+        for (int lPin : obj["linkedPins"].as<JsonArray>()) {
+          p.linkedPins.push_back(lPin);
+        }
+      }
+      if (p.mode == "VIRTUAL_BOOLEAN") {
+        p.timerEnabled = obj["timerEnabled"] | false;
+        p.timerDurationOn = obj["timerDurationOn"] | 0;
+        p.timerDurationOff = obj["timerDurationOff"] | 0;
+        p.timerWindowStart = obj["timerWindowStart"] | "";
+        p.timerWindowEnd = obj["timerWindowEnd"] | "";
+      } else {
+        p.timerEnabled = false;
+        p.timerDurationOn = 0;
+        p.timerDurationOff = 0;
+        p.timerWindowStart = "";
+        p.timerWindowEnd = "";
+      }
+      p.lastTimerToggle = 0;
+      p.currentTimerState = false;
       pins.push_back(p);
     }
   }
+}
+
+void saveDdnsConfig() {
+  preferences.begin("ddns", false);
+  preferences.putBool("enabled", ddnsEnabled);
+  preferences.putString("domain", ddnsDomain);
+  preferences.putString("token", ddnsToken);
+  preferences.putInt("port", ddnsExternalPort);
+  preferences.end();
+}
+
+void loadDdnsConfig() {
+  preferences.begin("ddns", true);
+  ddnsEnabled = preferences.getBool("enabled", false);
+  ddnsDomain = preferences.getString("domain", "");
+  ddnsToken = preferences.getString("token", "");
+  ddnsExternalPort = preferences.getInt("port", 80);
+  preferences.end();
+}
+
+String getSlug(String name) {
+  if (name == "") return "";
+  String slug = "";
+  for (size_t i = 0; i < name.length(); i++) {
+    char c = name[i];
+    if (isalnum(c)) {
+      slug += (char)tolower(c);
+    } else if (c == ' ' || c == '-' || c == '_') {
+      slug += '_';
+    }
+  }
+  // Remove duplicate underscores
+  String cleanSlug = "";
+  bool lastWasUnderscore = false;
+  for (size_t i = 0; i < slug.length(); i++) {
+    if (slug[i] == '_') {
+      if (!lastWasUnderscore) {
+        cleanSlug += '_';
+        lastWasUnderscore = true;
+      }
+    } else {
+      cleanSlug += slug[i];
+      lastWasUnderscore = false;
+    }
+  }
+  // Trim leading/trailing underscores
+  if (cleanSlug.startsWith("_")) cleanSlug = cleanSlug.substring(1);
+  if (cleanSlug.endsWith("_")) cleanSlug = cleanSlug.substring(0, cleanSlug.length() - 1);
+  return cleanSlug;
+}
+
+String getPinStateTopic(int gpio) {
+  for (auto& p : pins) {
+    if (p.gpio == gpio) {
+      String nameSlug = getSlug(p.name);
+      String pinId = (nameSlug != "") ? nameSlug : ("gpio" + String(gpio));
+      return "openagro/" + deviceHostname + "/" + pinId + "/state";
+    }
+  }
+  return "openagro/" + deviceHostname + "/gpio" + String(gpio) + "/state";
 }
 
 void publishAutoDiscovery() {
@@ -109,17 +237,18 @@ void publishAutoDiscovery() {
   for (auto& p : pins) {
     JsonDocument doc;
     String component = "";
-    String objectId = "gpio" + String(p.gpio);
-    String topicPrefix = "openagro/" + objectId;
+    String nameSlug = getSlug(p.name);
+    String pinId = (nameSlug != "") ? nameSlug : ("gpio" + String(p.gpio));
+    String topicPrefix = "openagro/" + deviceHostname + "/" + pinId;
     String discoveryTopic = "";
 
     JsonObject dev = doc["device"].to<JsonObject>();
     dev["identifiers"].add(macStr);
-    dev["name"] = "openAgro.ai Node";
+    dev["name"] = "openAgro - " + deviceHostname;
     dev["manufacturer"] = "openAgro";
 
     doc["name"] = p.name != "" ? p.name : ("Pin " + String(p.gpio));
-    doc["unique_id"] = macStr + "_" + objectId;
+    doc["unique_id"] = macStr + "_" + pinId;
 
     if (p.mode == "DIGITAL_OUTPUT") {
       component = "switch";
@@ -142,7 +271,7 @@ void publishAutoDiscovery() {
     }
 
     if (component != "") {
-      discoveryTopic = "homeassistant/" + component + "/openagro_" + macStr + "/" + objectId + "/config";
+      discoveryTopic = "homeassistant/" + component + "/openagro_" + macStr + "/" + pinId + "/config";
       String payload;
       serializeJson(doc, payload);
       mqttClient.publish(discoveryTopic.c_str(), payload.c_str(), true);
@@ -164,21 +293,24 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     msg += (char)payload[i];
   }
   
-  if (topicStr.startsWith("openagro/gpio") && topicStr.endsWith("/set")) {
-    int gpioStart = topicStr.indexOf("gpio") + 4;
-    int gpioEnd = topicStr.lastIndexOf("/set");
-    int gpio = topicStr.substring(gpioStart, gpioEnd).toInt();
+  String expectedPrefix = "openagro/" + deviceHostname + "/";
+  if (topicStr.startsWith(expectedPrefix) && topicStr.endsWith("/set")) {
+    int pinIdStart = expectedPrefix.length();
+    int pinIdEnd = topicStr.lastIndexOf("/set");
+    String pinId = topicStr.substring(pinIdStart, pinIdEnd);
     
     for (auto& p : pins) {
-      if (p.gpio == gpio) {
+      String nameSlug = getSlug(p.name);
+      String currentPinId = (nameSlug != "") ? nameSlug : ("gpio" + String(p.gpio));
+      if (currentPinId == pinId) {
         if (p.mode == "DIGITAL_OUTPUT") {
           int valueNum = (msg == "ON") ? 1 : 0;
           p.value = valueNum;
           int physicalVal = p.invertLogic ? !valueNum : valueNum;
-          digitalWrite(gpio, physicalVal);
+          digitalWrite(p.gpio, physicalVal);
           savePinsToNVS();
           
-          String stateTopic = "openagro/gpio" + String(gpio) + "/state";
+          String stateTopic = getPinStateTopic(p.gpio);
           mqttClient.publish(stateTopic.c_str(), valueNum ? "ON" : "OFF", true);
         }
         break;
@@ -209,54 +341,96 @@ void setupWiFi() {
   preferences.begin("wifi", true);
   String ssid = preferences.getString("ssid", DEFAULT_WIFI_SSID);
   String pass = preferences.getString("pass", DEFAULT_WIFI_PASS);
+  String role = preferences.getString("role", "principal");
+  int servoIndex = preferences.getInt("servo_index", 1);
   preferences.end();
 
-  // Start in AP_STA mode so we have a fallback AP while trying to connect
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(AP_SSID, AP_PASS);
-
-  WiFi.begin(ssid.c_str(), pass.c_str());
-  Serial.print("Connecting to WiFi: ");
-  Serial.println(ssid);
-  
-  int retries = 0;
-  // Wait up to 15 seconds for initial connection
-  while (WiFi.status() != WL_CONNECTED && retries < 30) {
-    delay(500);
-    Serial.print(".");
-    retries++;
-  }
-  
-  Serial.println();
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Connected to WiFi!");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
-    // Disable AP since we successfully connected
-    WiFi.mode(WIFI_STA);
+  String apSsid = "Nutshell-Setup";
+  if (role == "servo") {
+    char indexStr[16];
+    sprintf(indexStr, "%03d", servoIndex);
+    deviceHostname = "melkweg" + String(indexStr);
+    apSsid = "Melkweg" + String(indexStr) + "-Setup";
   } else {
-    Serial.println("Failed to connect to WiFi quickly. Continuing in AP_STA mode.");
+    deviceHostname = "nutshell";
+    apSsid = "Nutshell-Setup";
+  }
+
+  WiFi.setHostname(deviceHostname.c_str());
+
+  // If the SSID is empty or the default placeholder, do not connect to STA
+  if (ssid == "" || ssid == "YOUR_WIFI_SSID") {
+    Serial.println("No WiFi credentials configured. Starting AP mode only.");
+    WiFi.disconnect(true, true); // Erase SDK cached credentials to prevent auto-reconnection
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(apSsid.c_str(), AP_PASS);
+    Serial.print("AP SSID: ");
+    Serial.println(apSsid);
     Serial.print("AP IP Address: ");
     Serial.println(WiFi.softAPIP());
-    // Do NOT disconnect! The ESP32 will automatically keep retrying to connect in the background.
-    // This handles the case where the router takes longer to boot than the ESP32 after a power outage.
+  } else {
+    // Start in AP_STA mode so we have a fallback AP while trying to connect
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(apSsid.c_str(), AP_PASS);
+
+    WiFi.begin(ssid.c_str(), pass.c_str());
+    Serial.print("Connecting to WiFi: ");
+    Serial.println(ssid);
+    
+    int retries = 0;
+    // Wait up to 15 seconds for initial connection
+    while (WiFi.status() != WL_CONNECTED && retries < 30) {
+      delay(500);
+      Serial.print(".");
+      retries++;
+    }
+    
+    Serial.println();
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Connected to WiFi!");
+      Serial.print("IP Address: ");
+      Serial.println(WiFi.localIP());
+      // NTP Setup
+      configTime(-3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+      // Disable AP since we successfully connected
+      WiFi.mode(WIFI_STA);
+    } else {
+      Serial.println("Failed to connect to WiFi quickly. Continuing in AP_STA mode to allow reconfiguration.");
+      Serial.print("AP SSID: ");
+      Serial.println(apSsid);
+      Serial.print("AP IP Address: ");
+      Serial.println(WiFi.softAPIP());
+    }
   }
 }
 
 bool checkAuth(AsyncWebServerRequest *request) {
-  preferences.begin("auth", true);
-  String adminPass = preferences.getString("pass", "admin");
-  preferences.end();
-
   if (request->hasHeader("Authorization")) {
     String authHeader = request->header("Authorization");
     if (authHeader.startsWith("Bearer ")) {
       String token = authHeader.substring(7);
-      if (token == adminPass) return true;
+      if (token == globalAdminPass) return true;
     }
   }
   return false;
+}
+
+bool isTimeInWindow(const String& startStr, const String& endStr) {
+  if (startStr.length() < 5 || endStr.length() < 5) return true;
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    return true;
+  }
+  int currentMins = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+  int startMins = startStr.substring(0,2).toInt() * 60 + startStr.substring(3,5).toInt();
+  int endMins = endStr.substring(0,2).toInt() * 60 + endStr.substring(3,5).toInt();
+
+  if (startMins <= endMins) {
+    return currentMins >= startMins && currentMins <= endMins;
+  } else {
+    return currentMins >= startMins || currentMins <= endMins;
+  }
 }
 
 void setup() {
@@ -267,8 +441,20 @@ void setup() {
     return;
   }
   
+  preferences.begin("auth", true);
+  globalAdminPass = preferences.getString("pass", "admin");
+  preferences.end();
+
   setupPins();
+  
   setupWiFi();
+  
+  if (!MDNS.begin(deviceHostname.c_str())) {
+    Serial.println("Error setting up MDNS responder!");
+  } else {
+    Serial.printf("mDNS responder started: %s.local\n", deviceHostname.c_str());
+    MDNS.addService("http", "tcp", 80);
+  }
 
   macStr = WiFi.macAddress();
   macStr.replace(":", "");
@@ -290,11 +476,21 @@ void setup() {
   autoUpdateEnabled = preferences.getBool("autoUpdate", false);
   preferences.end();
 
+  loadDdnsConfig();
+
   // CORS handlers for OPTIONS preflight
   server.on("/api/pins", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
     AsyncWebServerResponse *response = request->beginResponse(204);
     response->addHeader("Access-Control-Allow-Origin", "*");
     response->addHeader("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    request->send(response);
+  });
+  
+  server.on("/api/pins/reorder", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(204);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     request->send(response);
   });
@@ -311,6 +507,14 @@ void setup() {
     AsyncWebServerResponse *response = request->beginResponse(204);
     response->addHeader("Access-Control-Allow-Origin", "*");
     response->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    request->send(response);
+  });
+
+  server.on("/api/ddns", HTTP_OPTIONS, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response = request->beginResponse(204);
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    response->addHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     response->addHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     request->send(response);
   });
@@ -347,11 +551,8 @@ void setup() {
       if(!deserializeJson(doc, data, len)) {
          if(doc.containsKey("pass")) {
             String attempt = doc["pass"].as<String>();
-            preferences.begin("auth", true);
-            String adminPass = preferences.getString("pass", "admin");
-            preferences.end();
-            if (attempt == adminPass) {
-               AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"token\":\"" + adminPass + "\"}");
+            if (attempt == globalAdminPass) {
+               AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"token\":\"" + globalAdminPass + "\"}");
                response->addHeader("Access-Control-Allow-Origin", "*");
                request->send(response);
             } else {
@@ -372,25 +573,50 @@ void setup() {
   server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request){
     JsonDocument doc;
     doc["hostname"] = "esp32-native";
-    doc["ip"] = WiFi.getMode() == WIFI_AP ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
-    doc["heap"] = ESP.getFreeHeap() / 1024;
+    doc["ssid"] = WiFi.SSID();
+    doc["hostname"] = WiFi.getHostname();
+    doc["ip"] = WiFi.localIP().toString();
+    doc["heap"] = ESP.getFreeHeap();
     doc["wifi_rssi"] = WiFi.RSSI();
-    doc["wifiMode"] = WiFi.getMode() == WIFI_AP ? "AP" : "STA";
+    doc["wifiMode"] = (WiFi.getMode() == WIFI_AP) ? "AP" : "STA";
+    
+    // Injetar DDNS no status
+    JsonObject ddnsObj = doc["ddns"].to<JsonObject>();
+    ddnsObj["enabled"] = ddnsEnabled;
+    ddnsObj["domain"] = ddnsDomain;
+    ddnsObj["token"] = ddnsToken;
+    ddnsObj["port"] = ddnsExternalPort;
     
     preferences.begin("wifi", true);
     doc["ssid"] = preferences.getString("ssid", DEFAULT_WIFI_SSID);
+    doc["role"] = preferences.getString("role", "principal");
+    doc["servoIndex"] = preferences.getInt("servo_index", 1);
     preferences.end();
     
     JsonArray pinsArray = doc["pins"].to<JsonArray>();
     for (size_t i = 0; i < pins.size(); i++) {
-      JsonObject pinObj = pinsArray.add<JsonObject>();
-      pinObj["gpio"] = pins[i].gpio;
-      pinObj["name"] = pins[i].name;
-      pinObj["mode"] = pins[i].mode;
-      pinObj["customLabel"] = pins[i].customLabel;
-      pinObj["invertLogic"] = pins[i].invertLogic;
-      pinObj["calibOffset"] = pins[i].calibOffset;
-      pinObj["calibMultiplier"] = pins[i].calibMultiplier;
+      JsonObject pObj = pinsArray.add<JsonObject>();
+      pObj["gpio"] = pins[i].gpio;
+      pObj["name"] = pins[i].name;
+      pObj["mode"] = pins[i].mode;
+      pObj["value"] = pins[i].value;
+      pObj["customLabel"] = pins[i].customLabel;
+      pObj["invertLogic"] = pins[i].invertLogic;
+      pObj["calibOffset"] = pins[i].calibOffset;
+      pObj["calibMultiplier"] = pins[i].calibMultiplier;
+      pObj["isSimulated"] = pins[i].isSimulated;
+      pObj["cameraUrl"] = pins[i].cameraUrl;
+      JsonArray linkedArr = pObj["linkedPins"].to<JsonArray>();
+      for (int lPin : pins[i].linkedPins) {
+        linkedArr.add(lPin);
+      }
+      if (pins[i].mode == "VIRTUAL_BOOLEAN") {
+        pObj["timerEnabled"] = pins[i].timerEnabled;
+        pObj["timerDurationOn"] = pins[i].timerDurationOn;
+        pObj["timerDurationOff"] = pins[i].timerDurationOff;
+        pObj["timerWindowStart"] = pins[i].timerWindowStart;
+        pObj["timerWindowEnd"] = pins[i].timerWindowEnd;
+      }
       
       // Update values for inputs
       if (pins[i].mode == "ANALOG_INPUT" || pins[i].mode.startsWith("SENSOR_")) {
@@ -400,7 +626,7 @@ void setup() {
         pins[i].value = pins[i].invertLogic ? !phys : phys;
       }
       
-      pinObj["value"] = pins[i].value;
+      pObj["value"] = pins[i].value;
     }
     
     String responseStr;
@@ -426,13 +652,39 @@ void setup() {
             digitalWrite(pinGpio, physicalVal);
           } else if (pins[i].mode == "PWM_OUTPUT") {
             ledcWrite(pinGpio, valueNum);
+          } else if (pins[i].mode == "VIRTUAL_BOOLEAN") {
+            bool shouldToggleChildren = true;
+            if (pins[i].timerEnabled && valueNum == 1) {
+              shouldToggleChildren = false;
+            }
+            if (shouldToggleChildren) {
+              for (int lPin : pins[i].linkedPins) {
+                for (size_t j = 0; j < pins.size(); j++) {
+                  if (pins[j].gpio == lPin && (pins[j].mode == "DIGITAL_OUTPUT" || pins[j].mode == "PWM_OUTPUT")) {
+                    pins[j].value = valueNum;
+                    if (pins[j].mode == "DIGITAL_OUTPUT") {
+                      int physicalVal = pins[j].invertLogic ? !valueNum : valueNum;
+                      digitalWrite(lPin, physicalVal);
+                    } else if (pins[j].mode == "PWM_OUTPUT") {
+                      ledcWrite(lPin, valueNum);
+                    }
+                    
+                    if (mqttClient.connected()) {
+                      String subStateTopic = getPinStateTopic(lPin);
+                      mqttClient.publish(subStateTopic.c_str(), valueNum ? "ON" : "OFF", true);
+                    }
+                    break;
+                  }
+                }
+              }
+            }
           }
           
           // Save the state change to NVS so it persists across reboots
           savePinsToNVS();
           
           if (mqttClient.connected()) {
-             String stateTopic = "openagro/gpio" + String(pinGpio) + "/state";
+             String stateTopic = getPinStateTopic(pinGpio);
              mqttClient.publish(stateTopic.c_str(), valueNum ? "ON" : "OFF", true);
           }
           
@@ -458,6 +710,56 @@ void setup() {
   });
 
   // Route: DELETE /api/pins
+  // Route: POST /api/pins/reorder
+  server.on("/api/pins/reorder", HTTP_POST, [](AsyncWebServerRequest *request){
+    AsyncWebServerResponse *response;
+    if (request->_tempObject) {
+      response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
+    } else {
+      response = request->beginResponse(400, "application/json", "{\"error\":\"Failed\"}");
+    }
+    response->addHeader("Access-Control-Allow-Origin", "*");
+    request->send(response);
+  }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    if(index == 0) {
+      request->_tempObject = NULL;
+      if (!checkAuth(request)) {
+        return;
+      }
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, data, len);
+      if(!error && doc.is<JsonArray>()) {
+        std::vector<PinState> newOrder;
+        JsonArray arr = doc.as<JsonArray>();
+        for (int gpio : arr) {
+          for (auto& p : pins) {
+            if (p.gpio == gpio) {
+              newOrder.push_back(p);
+              break;
+            }
+          }
+        }
+        // If some pins were missing in the request, add them at the end
+        for (auto& p : pins) {
+          bool found = false;
+          for (auto& newP : newOrder) {
+            if (newP.gpio == p.gpio) { found = true; break; }
+          }
+          if (!found) {
+            newOrder.push_back(p);
+          }
+        }
+        pins = newOrder;
+        savePinsToNVS();
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
+      } else {
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON array\"}");
+      }
+    }
+  });
+
   server.on("/api/pins", HTTP_DELETE, [](AsyncWebServerRequest *request){
     if (!checkAuth(request)) {
       request->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
@@ -511,7 +813,20 @@ void setup() {
           int value = doc["value"] | 0;
           bool invertLogic = doc["invertLogic"] | false;
           float calibOffset = doc["calibOffset"] | 0.0f;
-          float calibMultiplier = doc["calibMultiplier"] | 0.0f;
+          float calibMultiplier = doc["calibMultiplier"] | 1.0f;
+          bool isSimulated = doc["isSimulated"] | false;
+          String cameraUrl = doc["cameraUrl"] | "";
+          std::vector<int> reqLinkedPins;
+          if (doc.containsKey("linkedPins") && doc["linkedPins"].is<JsonArray>()) {
+            for (int lPin : doc["linkedPins"].as<JsonArray>()) {
+              reqLinkedPins.push_back(lPin);
+            }
+          }
+          bool timerEnabled = doc["timerEnabled"] | false;
+          int timerDurationOn = doc["timerDurationOn"] | 0;
+          int timerDurationOff = doc["timerDurationOff"] | 0;
+          String timerWindowStart = doc["timerWindowStart"] | "";
+          String timerWindowEnd = doc["timerWindowEnd"] | "";
 
           bool found = false;
           for (auto& p : pins) {
@@ -523,12 +838,24 @@ void setup() {
               p.invertLogic = invertLogic;
               p.calibOffset = calibOffset;
               p.calibMultiplier = calibMultiplier;
+              p.isSimulated = isSimulated;
+              p.cameraUrl = cameraUrl;
+              p.linkedPins = reqLinkedPins;
+              p.timerEnabled = timerEnabled;
+              p.timerDurationOn = timerDurationOn;
+              p.timerDurationOff = timerDurationOff;
+              p.timerWindowStart = timerWindowStart;
+              p.timerWindowEnd = timerWindowEnd;
+              if (!p.timerEnabled || p.value == 0) {
+                 p.currentTimerState = false;
+                 p.lastTimerToggle = 0;
+              }
               found = true;
               break;
             }
           }
           if (!found) {
-            PinState newPin = {gpio, name, mode, customLabel, value, invertLogic, calibOffset, calibMultiplier};
+            PinState newPin = {gpio, name, mode, customLabel, value, invertLogic, calibOffset, calibMultiplier, isSimulated, cameraUrl, reqLinkedPins, timerEnabled, timerDurationOn, timerDurationOff, timerWindowStart, timerWindowEnd, 0, false};
             pins.push_back(newPin);
           }
 
@@ -576,10 +903,14 @@ void setup() {
         if(doc.containsKey("ssid") && doc.containsKey("pass")) {
           String ssid = doc["ssid"].as<String>();
           String pass = doc["pass"].as<String>();
+          String role = doc["role"] | "principal";
+          int servo_index = doc["servo_index"] | 1;
           
           preferences.begin("wifi", false);
           preferences.putString("ssid", ssid);
           preferences.putString("pass", pass);
+          preferences.putString("role", role);
+          preferences.putInt("servo_index", servo_index);
           preferences.end();
           
           AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
@@ -647,6 +978,38 @@ void setup() {
         restartTime = millis();
       } else {
         request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+      }
+    }
+  });
+
+  // Route: POST /api/ddns
+  server.on("/api/ddns", HTTP_POST, [](AsyncWebServerRequest *request){
+  }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    if(index == 0) {
+      if (!checkAuth(request)) {
+        AsyncWebServerResponse *response = request->beginResponse(401, "application/json", "{\"error\":\"Unauthorized\"}");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
+        return;
+      }
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, data, len);
+      if(!error) {
+        ddnsEnabled = doc["enabled"] | false;
+        if(doc["domain"].is<String>()) ddnsDomain = doc["domain"].as<String>();
+        if(doc["token"].is<String>()) ddnsToken = doc["token"].as<String>();
+        if(doc["port"].is<int>()) ddnsExternalPort = doc["port"].as<int>();
+        
+        pendingDdnsSave = true; // Defer NVS save to main loop()
+        
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
+      } else {
+        String errStr = error.c_str();
+        AsyncWebServerResponse *response = request->beginResponse(400, "application/json", "{\"error\":\"Invalid JSON: " + errStr + "\"}");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
       }
     }
   });
@@ -738,6 +1101,15 @@ void setup() {
   // Serve static files from LittleFS
   server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    if (request->method() == HTTP_OPTIONS) {
+      request->send(200);
+    } else {
+      // Return index.html for client-side routing like /admin
+      request->send(LittleFS, "/index.html", "text/html");
+    }
+  });
+
   server.begin();
   Serial.println("Server started!");
 }
@@ -769,14 +1141,14 @@ void loop() {
         for (auto& p : pins) {
           if (p.mode.startsWith("SENSOR_") || p.mode == "ANALOG_INPUT") {
             p.value = analogRead(p.gpio);
-            String stateTopic = "openagro/gpio" + String(p.gpio) + "/state";
+            String stateTopic = getPinStateTopic(p.gpio);
             mqttClient.publish(stateTopic.c_str(), String(p.value).c_str(), true);
           } else if (p.mode == "DIGITAL_INPUT") {
             int phys = digitalRead(p.gpio);
             int val = p.invertLogic ? !phys : phys;
             if (val != p.value) {
               p.value = val;
-              String stateTopic = "openagro/gpio" + String(p.gpio) + "/state";
+              String stateTopic = getPinStateTopic(p.gpio);
               mqttClient.publish(stateTopic.c_str(), val ? "ON" : "OFF", true);
             }
           }
@@ -785,8 +1157,121 @@ void loop() {
     }
   }
   
+  // Virtual Boolean Timer Logic
+  for (auto& p : pins) {
+    if (p.mode == "VIRTUAL_BOOLEAN" && p.value == 1 && p.timerEnabled) {
+      if (!isTimeInWindow(p.timerWindowStart, p.timerWindowEnd)) {
+        if (p.currentTimerState || p.lastTimerToggle != 0) {
+          p.currentTimerState = false;
+          p.lastTimerToggle = 0;
+          for (int lPin : p.linkedPins) {
+            for (auto& tg : pins) {
+              if (tg.gpio == lPin && (tg.mode == "DIGITAL_OUTPUT" || tg.mode == "PWM_OUTPUT")) {
+                int physicalVal = tg.invertLogic ? 1 : 0;
+                tg.value = 0;
+                if (tg.mode == "DIGITAL_OUTPUT") digitalWrite(lPin, physicalVal);
+                else ledcWrite(lPin, 0);
+                if (mqttClient.connected()) {
+                  mqttClient.publish(getPinStateTopic(lPin).c_str(), "OFF", true);
+                }
+              }
+            }
+          }
+        }
+      } else {
+        unsigned long now = millis();
+        if (p.lastTimerToggle == 0) {
+          p.currentTimerState = true;
+          p.lastTimerToggle = now;
+          for (int lPin : p.linkedPins) {
+            for (auto& tg : pins) {
+              if (tg.gpio == lPin && (tg.mode == "DIGITAL_OUTPUT" || tg.mode == "PWM_OUTPUT")) {
+                int physicalVal = tg.invertLogic ? 0 : 1;
+                tg.value = 1;
+                if (tg.mode == "DIGITAL_OUTPUT") digitalWrite(lPin, physicalVal);
+                else ledcWrite(lPin, 255);
+                if (mqttClient.connected()) {
+                  mqttClient.publish(getPinStateTopic(lPin).c_str(), "ON", true);
+                }
+              }
+            }
+          }
+        } else {
+          unsigned long elapsed = now - p.lastTimerToggle;
+          if (p.currentTimerState) {
+            if (elapsed > (unsigned long)p.timerDurationOn * 1000) {
+              p.currentTimerState = false;
+              p.lastTimerToggle = now;
+              for (int lPin : p.linkedPins) {
+                for (auto& tg : pins) {
+                  if (tg.gpio == lPin && (tg.mode == "DIGITAL_OUTPUT" || tg.mode == "PWM_OUTPUT")) {
+                    int physicalVal = tg.invertLogic ? 1 : 0;
+                    tg.value = 0;
+                    if (tg.mode == "DIGITAL_OUTPUT") digitalWrite(lPin, physicalVal);
+                    else ledcWrite(lPin, 0);
+                    if (mqttClient.connected()) {
+                      mqttClient.publish(getPinStateTopic(lPin).c_str(), "OFF", true);
+                    }
+                  }
+                }
+              }
+            }
+          } else {
+            if (elapsed > (unsigned long)p.timerDurationOff * 60 * 1000) {
+              p.currentTimerState = true;
+              p.lastTimerToggle = now;
+              for (int lPin : p.linkedPins) {
+                for (auto& tg : pins) {
+                  if (tg.gpio == lPin && (tg.mode == "DIGITAL_OUTPUT" || tg.mode == "PWM_OUTPUT")) {
+                    int physicalVal = tg.invertLogic ? 0 : 1;
+                    tg.value = 1;
+                    if (tg.mode == "DIGITAL_OUTPUT") digitalWrite(lPin, physicalVal);
+                    else ledcWrite(lPin, 255);
+                    if (mqttClient.connected()) {
+                      mqttClient.publish(getPinStateTopic(lPin).c_str(), "ON", true);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (p.mode == "VIRTUAL_BOOLEAN" && p.value == 0 && (p.currentTimerState || p.lastTimerToggle != 0)) {
+      p.currentTimerState = false;
+      p.lastTimerToggle = 0;
+    }
+  }
+
   if (shouldRestart && millis() - restartTime > 1000) {
     ESP.restart();
+  }
+
+  // Logica DuckDNS
+  if (pendingDdnsSave) {
+    saveDdnsConfig();
+    lastDdnsUpdate = 0;
+    pendingDdnsSave = false;
+    Serial.println("DDNS config saved successfully from loop task.");
+  }
+
+  // DDNS DuckDNS check
+  if (ddnsEnabled && ddnsDomain != "" && ddnsToken != "" && WiFi.status() == WL_CONNECTED) {
+    if (millis() - lastDdnsUpdate > DDNS_INTERVAL || lastDdnsUpdate == 0) {
+      lastDdnsUpdate = millis();
+      Serial.println("Updating DuckDNS...");
+      HTTPClient http;
+      String url = "http://www.duckdns.org/update?domains=" + ddnsDomain + "&token=" + ddnsToken + "&ip=";
+      http.begin(url);
+      int httpCode = http.GET();
+      if (httpCode > 0) {
+        String payload = http.getString();
+        Serial.println("DuckDNS Response: " + payload);
+      } else {
+        Serial.printf("DuckDNS update failed, error: %s\n", http.errorToString(httpCode).c_str());
+      }
+      http.end();
+    }
   }
 
   // Auto-update background check

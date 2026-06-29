@@ -11,7 +11,9 @@ export type PinMode =
   | 'SENSOR_WATER_TEMP'
   | 'SENSOR_HUMIDITY'
   | 'SENSOR_CO2'
-  | 'SENSOR_TEMP';
+  | 'SENSOR_TEMP'
+  | 'CAMERA_STREAM'
+  | 'VIRTUAL_BOOLEAN';
 
 export interface ESP32Pin {
   gpio: number;          // e.g. 2, 4, 15
@@ -25,6 +27,15 @@ export interface ESP32Pin {
   invertLogic?: boolean;
   calibOffset?: number;
   calibMultiplier?: number;
+  isSimulated?: boolean;
+  cameraUrl?: string;
+  linkedPins?: number[]; // GPIOs that this virtual boolean controls
+  // Timer fields for VIRTUAL_BOOLEAN
+  timerEnabled?: boolean;
+  timerDurationOn?: number; // seconds
+  timerDurationOff?: number; // minutes
+  timerWindowStart?: string; // "HH:MM"
+  timerWindowEnd?: string; // "HH:MM"
 }
 
 export interface ESP32Node {
@@ -50,6 +61,8 @@ export interface WiFiSettings {
   apSsid: string;
   apIp: string;
   staIp?: string;
+  role?: 'principal' | 'servo';
+  servoIndex?: number;
 }
 
 export interface MQTTSettings {

@@ -87,7 +87,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
       <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
         <div className="flex justify-between items-center glass-panel p-4 rounded-2xl border border-[#252833]/60">
           <div className="flex items-center gap-3">
-            <div className="p-2 border border-cyan-500/15 bg-cyan-500/5 text-cyan-400 rounded-xl">
+            <div className="p-2 border border-accent-500/15 bg-accent-500/5 text-accent-400 rounded-xl">
               <Layers className="w-5 h-5 animate-pulse" />
             </div>
             <div className="flex flex-col">
@@ -100,13 +100,13 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
             <button 
               onClick={handleScan}
               disabled={isScanning}
-              className={`p-2 rounded-xl text-slate-400 border border-white/5 hover:border-slate-705 hover:text-white transition-all ${isScanning ? 'animate-spin border-cyan-500/30 text-cyan-400 bg-cyan-950/20' : 'glass-panel'}`}
+              className={`p-2 rounded-xl text-slate-400 border border-white/5 hover:border-slate-705 hover:text-white transition-all ${isScanning ? 'animate-spin border-accent-500/30 text-accent-400 bg-accent-950/20' : 'glass-panel'}`}
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setShowAddForm(!showAddForm)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10.5px] font-bold border transition-all ${showAddForm ? 'bg-[#252936] border-white/5 text-slate-300' : 'bg-cyan-500 border-cyan-400/80 text-slate-950 shadow-md shadow-cyan-500/10 active:bg-cyan-600 hover:bg-cyan-400'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10.5px] font-bold border transition-all ${showAddForm ? 'bg-[#252936] border-white/5 text-slate-300' : 'bg-accent-500 border-accent-400/80 text-slate-950 shadow-md shadow-accent-500/10 active:bg-accent-600 hover:bg-accent-400'}`}
             >
               <Plus className="w-3.5 h-3.5" /> Adicionar Nó
             </button>
@@ -125,7 +125,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                   value={newHostname}
                   onChange={(e) => setNewHostname(e.target.value)}
                   placeholder="Ex: esp32-corredor"
-                  className="bg-[#090A0D] border border-[#252833] text-xs px-2.5 py-2 rounded-xl text-slate-200 outline-none focus:border-cyan-500/50"
+                  className="bg-[#090A0D] border border-[#252833] text-xs px-2.5 py-2 rounded-xl text-slate-200 outline-none focus:border-accent-500/50"
                   required
                 />
               </div>
@@ -136,7 +136,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                   value={newIp}
                   onChange={(e) => setNewIp(e.target.value)}
                   placeholder="Ex: 192.168.4.45"
-                  className="bg-[#090A0D] border border-[#252833] text-xs px-2.5 py-2 rounded-xl text-slate-200 outline-none focus:border-cyan-500/50"
+                  className="bg-[#090A0D] border border-[#252833] text-xs px-2.5 py-2 rounded-xl text-slate-200 outline-none focus:border-accent-500/50"
                   required
                 />
               </div>
@@ -151,7 +151,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                     name="role" 
                     checked={newRole === 'NODE'} 
                     onChange={() => setNewRole('NODE')}
-                    className="accent-cyan-500" 
+                    className="accent-accent-500" 
                   />
                   Nó Regular
                 </label>
@@ -161,7 +161,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                     name="role" 
                     checked={newRole === 'COORDINATOR'} 
                     onChange={() => setNewRole('COORDINATOR')}
-                    className="accent-cyan-500" 
+                    className="accent-accent-500" 
                   />
                   Coordenador
                 </label>
@@ -177,7 +177,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                 </button>
                 <button 
                   type="submit" 
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-[10.5px]"
+                  className="bg-accent-500 hover:bg-accent-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-[10.5px]"
                 >
                   Confirmar
                 </button>
@@ -195,20 +195,20 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
               key={node.ip} 
               className={`glass-card p-4.5 rounded-3xl border transition-all shadow-inner ${
                 node.role === 'COORDINATOR' 
-                  ? 'border-[#252833] border-l-4 border-l-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.1)]' 
+                  ? 'border-[#252833] border-l-4 border-l-accent-500 shadow-[0_0_15px_var(--color-accent-glow)]' 
                   : 'border-[#252833]/60'
               }`}
             >
               {/* Card Header information */}
               <div className="flex justify-between items-start gap-2 border-b border-[#252833]/60 pb-3 mb-3">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-2xl border ${node.role === 'COORDINATOR' ? 'bg-cyan-950/20 border-cyan-500/30 text-cyan-400 animate-pulse' : 'glass-panel border-[#252833] text-slate-400'}`}>
+                  <div className={`p-2.5 rounded-2xl border ${node.role === 'COORDINATOR' ? 'bg-accent-950/20 border-accent-500/30 text-accent-400 animate-pulse' : 'glass-panel border-[#252833] text-slate-400'}`}>
                     <Server className="w-4 h-4" />
                   </div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-white">{node.hostname}.local</span>
-                      <span className={`text-[8px] font-mono px-2 py-0.5 rounded-full uppercase ${node.role === 'COORDINATOR' ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-400' : 'glass-panel' + ' border border-[#252833] text-slate-500'}`}>
+                      <span className={`text-[8px] font-mono px-2 py-0.5 rounded-full uppercase ${node.role === 'COORDINATOR' ? 'bg-accent-500/10 border border-accent-500/20 text-accent-400' : 'glass-panel' + ' border border-[#252833] text-slate-500'}`}>
                         {node.role === 'COORDINATOR' ? 'Coord / AP' : 'Nó Wifi'}
                       </span>
                     </div>
@@ -268,7 +268,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                             onClick={() => handleToggleRemotePin(node.ip, gpio, pin.value)}
                             className={`p-1.5 rounded-full border transition-all cursor-pointer ${
                               pin.value === 1 
-                                ? 'bg-cyan-950/40 border-cyan-500/30 text-cyan-400' 
+                                ? 'bg-accent-950/40 border-accent-500/30 text-accent-400' 
                                 : 'glass-card border-white/5 text-slate-500 hover:text-slate-300'
                             }`}
                           >
@@ -279,7 +279,7 @@ export default function NodeMonitor({ nodes, onAddNode, onUpdateNodePin, onAddLo
                             {pin.value}
                           </span>
                         ) : (
-                          <span className="bg-cyan-950/30 border border-cyan-900/50 px-2 py-0.5 rounded-lg text-[9.5px] text-cyan-400 font-mono">
+                          <span className="bg-accent-950/30 border border-accent-900/50 px-2 py-0.5 rounded-lg text-[9.5px] text-accent-400 font-mono">
                             {pin.value}
                           </span>
                         )}

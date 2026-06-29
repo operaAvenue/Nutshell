@@ -27,7 +27,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
   const getSourceStyle = (source: string) => {
     switch (source) {
       case 'WIFI':
-        return 'text-cyan-400 bg-cyan-950/40 border border-cyan-900/40';
+        return 'text-accent-400 bg-accent-950/40 border border-accent-900/40';
       case 'HTTP':
         return 'text-blue-400 bg-blue-950/40 border border-blue-900/40';
       case 'GPIO':
@@ -55,7 +55,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
       {/* Console Header */}
       <div className="flex justify-between items-center pb-3 border-b border-[#252833]/60 mb-3">
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-cyan-400" />
+          <Terminal className="w-4 h-4 text-accent-400" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">Terminal Monitor Serial (115200)</h4>
         </div>
 
@@ -67,7 +67,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
             title="Simular alguma atividade no ESP32"
             className="flex items-center gap-1 text-[9px] font-mono px-2.5 py-1.5 glass-panel hover:bg-[#252936] border border-white/5 text-slate-400 hover:text-white rounded-lg transition-all"
           >
-            <PlayCircle className="w-3 h-3 text-cyan-400" /> Simular atividade
+            <PlayCircle className="w-3 h-3 text-accent-400" /> Simular atividade
           </button>
           
           <button 
@@ -89,7 +89,7 @@ export default function LogConsole({ logs, onClearLogs, onAddLog }: LogConsolePr
               onClick={() => setFilter(src)}
               className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
                 filter === src 
-                  ? 'bg-cyan-500 text-slate-950 font-bold' 
+                  ? 'bg-accent-500 text-slate-950 font-bold' 
                   : 'glass-panel text-slate-500 hover:text-slate-300'
               }`}
             >

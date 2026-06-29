@@ -28,7 +28,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
   const fetchAutoUpdateState = async () => {
     try {
       const targetUrl = selectedNodeIp === 'local' ? '/api/autoupdate' : `http://${selectedNodeIp}/api/autoupdate`;
-      const response = await fetch(targetUrl);
+      const response = await fetch(targetUrl, { headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}` } });
       if(response.ok) {
         const data = await response.json();
         setAutoUpdateEnabled(data.enabled);
@@ -45,7 +45,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
       const targetUrl = selectedNodeIp === 'local' ? '/api/autoupdate' : `http://${selectedNodeIp}/api/autoupdate`;
       await fetch(targetUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}` },
         body: JSON.stringify({ enabled: newState })
       });
       onAddLog('SYSTEM', `Atualizações automáticas ${newState ? 'ATIVADAS' : 'DESATIVADAS'}`);
@@ -57,7 +57,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
   const fetchCurrentVersion = async () => {
     try {
       const targetUrl = selectedNodeIp === 'local' ? '/api/version' : `http://${selectedNodeIp}/api/version`;
-      const response = await fetch(targetUrl);
+      const response = await fetch(targetUrl, { headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}` } });
       if(response.ok) {
         const data = await response.json();
         setCurrentVersion(data.version || "v1.0.0");
@@ -119,7 +119,8 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
         },
         body: JSON.stringify({
           firmwareUrl: firmwareUrl,
@@ -146,7 +147,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
       <div className="glass-card p-5 rounded-3xl border border-white/5 shadow-inner backdrop-blur-sm">
         <div className="flex justify-between items-center pb-3 border-b border-[#252833]/60 mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 border border-cyan-500/15 bg-cyan-500/5 text-cyan-400 rounded-xl">
+            <div className="p-2 border border-accent-500/15 bg-accent-500/5 text-accent-400 rounded-xl">
               <Github className="w-5 h-5" />
             </div>
             <div className="flex flex-col">
@@ -181,7 +182,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
           </div>
           <button
             onClick={toggleAutoUpdate}
-            className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${autoUpdateEnabled ? 'bg-cyan-500' : 'bg-slate-700'}`}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${autoUpdateEnabled ? 'bg-accent-500' : 'bg-slate-700'}`}
           >
             <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${autoUpdateEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
@@ -222,7 +223,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
                   <button 
                     type="button"
                     onClick={startOtaUpdate}
-                    className="flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/10 active:scale-95 transition-all cursor-pointer font-sans"
+                    className="flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl text-xs font-bold bg-accent-500 hover:bg-accent-400 text-slate-950 shadow-md shadow-accent-500/10 active:scale-95 transition-all cursor-pointer font-sans"
                   >
                     <CloudDownload className="w-4 h-4 fill-slate-950" /> Baixar e Instalar no ESP32
                   </button>
@@ -247,7 +248,7 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
           )}
 
           {isUpdating && (
-            <div className="mt-2 text-center text-[10px] text-cyan-400 animate-pulse bg-cyan-400/10 p-2 rounded-lg">
+            <div className="mt-2 text-center text-[10px] text-accent-400 animate-pulse bg-accent-400/10 p-2 rounded-lg">
               Enviando comando para o ESP32...
             </div>
           )}
@@ -266,10 +267,10 @@ export default function OtaUpdate({ nodes, onAddLog }: OtaUpdateProps) {
         </div>
       </div>
       
-      <div className="mb-1 flex items-start gap-2.5 bg-cyan-950/5 border border-cyan-500/10 p-3.5 rounded-2xl shadow-inner">
-        <AlertCircle className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse" />
+      <div className="mb-1 flex items-start gap-2.5 bg-accent-950/5 border border-accent-500/10 p-3.5 rounded-2xl shadow-inner">
+        <AlertCircle className="w-4 h-4 text-accent-400 flex-shrink-0 mt-0.5 animate-pulse" />
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-bold text-cyan-400 font-mono">FLUXO DE OTA REMOTO</span>
+          <span className="text-[10px] font-bold text-accent-400 font-mono">FLUXO DE OTA REMOTO</span>
           <p className="text-[9.5px] text-slate-505 leading-relaxed font-sans">
             Ao clicar em instalar, o navegador enviará apenas o link de download direto do GitHub (<code className="glass-panel text-slate-400 px-1.5 py-0.5 rounded font-mono">browser_download_url</code>) para o ESP32. O ESP32 cuidará do download seguro em background através de HTTPS com cliente inseguro, fazendo validação automática do cabeçalho binário!
           </p>
