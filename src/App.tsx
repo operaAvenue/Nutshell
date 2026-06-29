@@ -4,13 +4,18 @@ import PublicDashboard from './components/PublicDashboard';
 import AdminAuth from './components/AdminAuth';
 import BackgroundEffects from './components/BackgroundEffects';
 
-import { applyCustomTheme } from './utils/theme';
+import { applyCustomTheme, applyFullCustomTheme } from './utils/theme';
 
 export default function App() {
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
-      if (savedTheme.startsWith('#')) {
+      if (savedTheme === 'custom') {
+        try {
+          const config = JSON.parse(localStorage.getItem('theme_custom_config') || '');
+          applyFullCustomTheme(config);
+        } catch (e) {}
+      } else if (savedTheme.startsWith('#')) {
         applyCustomTheme(savedTheme);
       } else {
         document.documentElement.className = savedTheme;

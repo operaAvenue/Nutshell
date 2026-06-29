@@ -30,7 +30,7 @@ import { Link } from 'react-router-dom';
 
 import { MQTTSettings } from '../types';
 
-import { applyCustomTheme, resetTheme } from '../utils/theme';
+import { applyCustomTheme, applyFullCustomTheme, resetTheme } from '../utils/theme';
 
 export default function AdminDashboard() {
   // Core application States
@@ -50,6 +50,33 @@ export default function AdminDashboard() {
   const [mobileDashboardView, setMobileDashboardView] = useState<'VISUAL' | 'CONTROLS'>('VISUAL');
   const lastReorderTime = useRef<number>(0);
   const ddnsLoaded = useRef<boolean>(false);
+
+  const [customTheme, setCustomTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('theme_custom_config');
+      return saved ? JSON.parse(saved) : {
+        accent: '#06b6d4',
+        mesh1: '#0f172a',
+        mesh2: '#1e1b4b',
+        mesh3: '#113854',
+        mesh4: '#210f36',
+        glassOpacity: 0.08,
+        glowOpacity: 0.4
+      };
+    } catch (e) {
+      return {
+        accent: '#06b6d4',
+        mesh1: '#0f172a',
+        mesh2: '#1e1b4b',
+        mesh3: '#113854',
+        mesh4: '#210f36',
+        glassOpacity: 0.08,
+        glowOpacity: 0.4
+      };
+    }
+  });
+
+  const [bgEffect, setBgEffect] = useState(() => localStorage.getItem('background_effect') || 'particles');
 
   useEffect(() => {
     localStorage.setItem('esp32_nodes', JSON.stringify(nodes));
@@ -789,141 +816,276 @@ export default function AdminDashboard() {
               )}
 
               {activeTab === 'THEME' && (
-                <div className="glass-card p-6 rounded-2xl border border-white/5">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
-                    <Palette className="w-6 h-6 text-accent-500" />
-                    Personalização do Painel (Temas e Cores)
-                  </h2>
-                  <p className="text-slate-400 text-sm mb-6">
-                    Selecione um tema de cor para personalizar os destaques, brilhos e contornos do painel. A cor selecionada afeta todo o design do GrowinStones!
-                  </p>
+                <div className="glass-card p-6 rounded-2xl border border-white/5 space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                      <Palette className="w-6 h-6 text-accent-500" />
+                      Personalização do Painel (Temas e Cores)
+                    </h2>
+                    <p className="text-slate-400 text-sm">
+                      Personalize a estética visual do painel GrowinStones. Ajuste cores de destaque, planos de fundo dinâmicos e efeitos de animação!
+                    </p>
+                  </div>
 
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estilos Modernos & Gradientes</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                          { name: 'Ciano Cyber', color: '#06b6d4' },
-                          { name: 'Indigo Estelar', color: '#6366f1' },
-                          { name: 'Violeta Neon', color: '#8b5cf6' },
-                          { name: 'Rosa Vibrante', color: '#ec4899' },
-                        ].map(item => (
-                          <button
-                            key={item.color}
-                            onClick={() => {
-                              localStorage.setItem('theme', item.color);
-                              applyCustomTheme(item.color);
-                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
-                            }}
-                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
-                          >
-                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold font-sans">{item.name}</span>
-                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Natureza & Cultivos</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                          { name: 'Menta Fresca', color: '#10b981' },
-                          { name: 'Verde Esmeralda', color: '#059669' },
-                          { name: 'Verde Floresta', color: '#15803d' },
-                          { name: 'Lima Volt', color: '#84cc16' },
-                        ].map(item => (
-                          <button
-                            key={item.color}
-                            onClick={() => {
-                              localStorage.setItem('theme', item.color);
-                              applyCustomTheme(item.color);
-                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
-                            }}
-                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
-                          >
-                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold font-sans">{item.name}</span>
-                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tons Quentes & Alertas</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                          { name: 'Laranja Solar', color: '#f59e0b' },
-                          { name: 'Amarelo Ouro', color: '#ffb703' },
-                          { name: 'Fogo Carmesim', color: '#ef4444' },
-                          { name: 'Rosa Coral', color: '#f43f5e' },
-                        ].map(item => (
-                          <button
-                            key={item.color}
-                            onClick={() => {
-                              localStorage.setItem('theme', item.color);
-                              applyCustomTheme(item.color);
-                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
-                            }}
-                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
-                          >
-                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold font-sans">{item.name}</span>
-                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Sleek & Ocean</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                          { name: 'Azul Elétrico', color: '#3b82f6' },
-                          { name: 'Azul Cobalto', color: '#1d4ed8' },
-                          { name: 'Cinza Espacial', color: '#64748b' },
-                          { name: 'Prata Metalizado', color: '#cbd5e1' },
-                        ].map(item => (
-                          <button
-                            key={item.color}
-                            onClick={() => {
-                              localStorage.setItem('theme', item.color);
-                              applyCustomTheme(item.color);
-                              addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
-                            }}
-                            className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-slate-300 hover:text-white transition-all text-left cursor-pointer"
-                          >
-                            <span className="w-4 h-4 rounded-full border border-white/10 shrink-0" style={{ backgroundColor: item.color }} />
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold font-sans">{item.name}</span>
-                              <span className="text-[9px] font-mono text-slate-500">{item.color}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-white/5">
-                      <button
-                        onClick={() => {
-                          resetTheme();
-                          localStorage.removeItem('theme');
-                          addLog('SYSTEM', 'Tema resetado para o padrão original (Verde-água).');
-                        }}
-                        className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer border border-white/5"
-                      >
-                        Resetar para o Padrão
-                      </button>
+                  {/* 1. GENERAL THEME PRESETS */}
+                  <div className="border-t border-white/5 pt-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">1. Modos de Visualização Geral</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        { id: 'escuro', name: 'Modo Escuro (Padrão)', desc: 'Design escuro com profundidade e brilhos', className: '' },
+                        { id: 'claro', name: 'Modo Claro (Light)', desc: 'Interface clara ideal para ambientes iluminados', className: 'theme-light' },
+                        { id: 'mono', name: 'Monocromático (Mono)', desc: 'Visual minimalista em tons de cinza', className: 'theme-mono' }
+                      ].map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            resetTheme();
+                            if (item.className) {
+                              localStorage.setItem('theme', item.className);
+                              document.documentElement.className = item.className;
+                              addLog('SYSTEM', `Tema alterado para Modo ${item.name}.`);
+                            } else {
+                              localStorage.removeItem('theme');
+                              localStorage.removeItem('theme_custom_config');
+                              addLog('SYSTEM', 'Tema resetado para o Modo Escuro Padrão.');
+                            }
+                          }}
+                          className="flex flex-col p-3 rounded-xl border border-white/5 hover:border-accent-500/30 bg-slate-950/20 hover:bg-slate-900/30 text-left transition-all cursor-pointer"
+                        >
+                          <span className="text-xs font-bold text-slate-200">{item.name}</span>
+                          <span className="text-[10px] text-slate-500 mt-1">{item.desc}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
+
+                  {/* 2. ACCENT COLOR PRESETS */}
+                  <div className="border-t border-white/5 pt-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">2. Presets de Cores de Destaque</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-[10px] font-mono text-slate-500 uppercase mb-2">Moderno & Neon</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {[
+                            { name: 'Ciano Cyber', color: '#06b6d4' },
+                            { name: 'Indigo Estelar', color: '#6366f1' },
+                            { name: 'Violeta Neon', color: '#8b5cf6' },
+                            { name: 'Rosa Vibrante', color: '#ec4899' },
+                          ].map(item => (
+                            <button
+                              key={item.color}
+                              onClick={() => {
+                                localStorage.setItem('theme', item.color);
+                                applyCustomTheme(item.color);
+                                addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                              }}
+                              className="flex items-center gap-2 p-2 rounded-lg border border-white/5 hover:border-accent-500/30 bg-slate-950/10 hover:bg-slate-900/20 text-slate-300 hover:text-white transition-all text-left cursor-pointer text-[11px]"
+                            >
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                              <span className="truncate">{item.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-[10px] font-mono text-slate-500 uppercase mb-2">Cultivos & Orgânico</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {[
+                            { name: 'Menta Fresca', color: '#10b981' },
+                            { name: 'Verde Esmeralda', color: '#059669' },
+                            { name: 'Verde Floresta', color: '#15803d' },
+                            { name: 'Lima Volt', color: '#84cc16' },
+                          ].map(item => (
+                            <button
+                              key={item.color}
+                              onClick={() => {
+                                localStorage.setItem('theme', item.color);
+                                applyCustomTheme(item.color);
+                                addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                              }}
+                              className="flex items-center gap-2 p-2 rounded-lg border border-white/5 hover:border-accent-500/30 bg-slate-950/10 hover:bg-slate-900/20 text-slate-300 hover:text-white transition-all text-left cursor-pointer text-[11px]"
+                            >
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                              <span className="truncate">{item.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-[10px] font-mono text-slate-500 uppercase mb-2">Tons Quentes</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {[
+                            { name: 'Laranja Solar', color: '#f59e0b' },
+                            { name: 'Amarelo Ouro', color: '#ffb703' },
+                            { name: 'Fogo Carmesim', color: '#ef4444' },
+                            { name: 'Rosa Coral', color: '#f43f5e' },
+                          ].map(item => (
+                            <button
+                              key={item.color}
+                              onClick={() => {
+                                localStorage.setItem('theme', item.color);
+                                applyCustomTheme(item.color);
+                                addLog('SYSTEM', `Tema alterado para ${item.name} (${item.color}).`);
+                              }}
+                              className="flex items-center gap-2 p-2 rounded-lg border border-white/5 hover:border-accent-500/30 bg-slate-950/10 hover:bg-slate-900/20 text-slate-300 hover:text-white transition-all text-left cursor-pointer text-[11px]"
+                            >
+                              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                              <span className="truncate">{item.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. BACKGROUND EFFECTS SELECTOR */}
+                  <div className="border-t border-white/5 pt-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">3. Efeitos de Fundo (Background Animations)</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      {[
+                        { id: 'particles', name: 'Partículas', desc: 'Pontos brilhantes' },
+                        { id: 'leaves', name: 'Folhas Cannabis', desc: 'Folhas flutuando' },
+                        { id: 'rain', name: 'Chuva Digital', desc: 'Linhas caindo' },
+                        { id: 'orbs', name: 'Apenas Globos', desc: 'Globos estáticos' },
+                        { id: 'none', name: 'Sem Efeito', desc: 'Sólido' }
+                      ].map(item => {
+                        const isActive = bgEffect === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              localStorage.setItem('background_effect', item.id);
+                              setBgEffect(item.id);
+                              addLog('SYSTEM', `Efeito de fundo alterado para ${item.name}.`);
+                            }}
+                            className={`flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-accent-500/10 border-accent-500/30 text-accent-400 shadow-[0_0_12px_var(--color-accent-glow)]'
+                                : 'glass-panel border-white/5 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            <span className="text-[11px] font-bold">{item.name}</span>
+                            <span className="text-[9px] text-slate-500 mt-0.5">{item.desc}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 4. ADVANCED CUSTOM COLOR CONFIGURATOR */}
+                  <div className="border-t border-white/5 pt-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">4. Criador de Tema Personalizado</h3>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 space-y-4">
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-mono text-slate-400 uppercase">Cor Destaque</label>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="color" 
+                              value={customTheme.accent}
+                              onChange={(e) => setCustomTheme({ ...customTheme, accent: e.target.value })}
+                              className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                            />
+                            <span className="text-xs font-mono text-white select-all">{customTheme.accent}</span>
+                          </div>
+                        </div>
+
+                        {[
+                          { key: 'mesh1', label: 'Mesh Fundo 1' },
+                          { key: 'mesh2', label: 'Mesh Fundo 2' },
+                          { key: 'mesh3', label: 'Mesh Fundo 3' },
+                          { key: 'mesh4', label: 'Mesh Fundo 4' }
+                        ].map(item => (
+                          <div key={item.key} className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-mono text-slate-400 uppercase">{item.label}</label>
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="color" 
+                                value={(customTheme as any)[item.key]}
+                                onChange={(e) => setCustomTheme({ ...customTheme, [item.key]: e.target.value })}
+                                className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                              />
+                              <span className="text-xs font-mono text-white select-all">{(customTheme as any)[item.key]}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 uppercase">
+                            <span>Opacidade do Vidro (Glass)</span>
+                            <span className="text-accent-400 font-bold">{(customTheme.glassOpacity * 100).toFixed(0)}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.01" 
+                            value={customTheme.glassOpacity}
+                            onChange={(e) => setCustomTheme({ ...customTheme, glassOpacity: parseFloat(e.target.value) })}
+                            className="w-full accent-accent-500 cursor-pointer h-1 bg-slate-900 rounded-lg appearance-none"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 uppercase">
+                            <span>Intensidade do Brilho (Glow)</span>
+                            <span className="text-accent-400 font-bold">{(customTheme.glowOpacity * 100).toFixed(0)}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.01" 
+                            value={customTheme.glowOpacity}
+                            onChange={(e) => setCustomTheme({ ...customTheme, glowOpacity: parseFloat(e.target.value) })}
+                            className="w-full accent-accent-500 cursor-pointer h-1 bg-slate-900 rounded-lg appearance-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2.5 pt-3">
+                        <button
+                          onClick={() => {
+                            resetTheme();
+                            localStorage.removeItem('theme');
+                            localStorage.removeItem('theme_custom_config');
+                            setCustomTheme({
+                              accent: '#06b6d4',
+                              mesh1: '#0f172a',
+                              mesh2: '#1e1b4b',
+                              mesh3: '#113854',
+                              mesh4: '#210f36',
+                              glassOpacity: 0.08,
+                              glowOpacity: 0.4
+                            });
+                            addLog('SYSTEM', 'Tema de cores redefinido para as configurações padrão.');
+                          }}
+                          className="px-4 py-2 border border-white/5 hover:border-slate-700/50 bg-[#141620] text-slate-400 hover:text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+                        >
+                          Restaurar Padrões
+                        </button>
+                        <button
+                          onClick={() => {
+                            localStorage.setItem('theme', 'custom');
+                            localStorage.setItem('theme_custom_config', JSON.stringify(customTheme));
+                            applyFullCustomTheme(customTheme);
+                            addLog('SYSTEM', 'Tema customizado personalizado aplicado com sucesso!');
+                          }}
+                          className="px-5 py-2 bg-accent-500 hover:bg-accent-400 text-slate-950 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-[0_0_12px_var(--color-accent-glow)]"
+                        >
+                          Aplicar Tema Customizado
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+
                 </div>
               )}
 

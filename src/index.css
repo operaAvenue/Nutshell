@@ -172,3 +172,53 @@
   pointer-events: none;
   opacity: 0;
 }
+
+/* Light Theme overrides */
+.theme-light {
+  --accent-400: #38bdf8;
+  --accent-500: #0284c7;
+  --accent-600: #0369a1;
+  --accent-900: #e0f2fe;
+  --accent-950: #bae6fd;
+  --accent-glow: rgba(2, 132, 199, 0.25);
+  --mesh-1: #ffffff;
+  --mesh-2: #f1f5f9;
+  --mesh-3: #e2e8f0;
+  --mesh-4: #cbd5e1;
+  --glass-bg: rgba(255, 255, 255, 0.65);
+}
+.theme-light, .theme-light #main-panel {
+  color: #334155 !important;
+}
+.theme-light .text-white, .theme-light h1, .theme-light h2, .theme-light h3, .theme-light h4, .theme-light h5, .theme-light h6 {
+  color: #0f172a !important;
+}
+.theme-light .text-slate-200, .theme-light .text-slate-300, .theme-light .text-slate-350 {
+  color: #334155 !important;
+}
+.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+.theme-light .glass-panel, .theme-light .glass-card {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Monotonic Theme overrides */
+.theme-mono {
+  --accent-400: #f1f5f9;
+  --accent-500: #64748b;
+  --accent-600: #475569;
+  --accent-900: #1e293b;
+  --accent-950: #0f172a;
+  --accent-glow: rgba(100, 116, 139, 0.3);
+  --mesh-1: #020617;
+  --mesh-2: #0f172a;
+  --mesh-3: #1e293b;
+  --mesh-4: #090d16;
+  --glass-bg: rgba(255, 255, 255, 0.03);
+}
