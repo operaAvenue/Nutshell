@@ -23,8 +23,10 @@ import {
   Tv,
   Network,
   CloudDownload,
-  Palette
+  Palette,
+  Home
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { MQTTSettings } from '../types';
 
@@ -36,11 +38,22 @@ export default function AdminDashboard() {
   const [wifiSettings, setWifiSettings] = useState<WiFiSettings>(DEFAULT_WIFI_SETTINGS);
   const [mqttSettings, setMqttSettings] = useState<MQTTSettings>({ server: '', port: 1883, user: '', pass: '' });
   const [ddnsSettings, setDdnsSettings] = useState({ enabled: false, domain: '', token: '', port: 80 });
-  const [nodes, setNodes] = useState<ESP32Node[]>(INITIAL_NODES);
+  const [nodes, setNodes] = useState<ESP32Node[]>(() => {
+    try {
+      const saved = localStorage.getItem('esp32_nodes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [activeTab, setActiveTab] = useState<'CONTROLS' | 'MESH' | 'FIRMWARE' | 'MQTT' | 'OTA' | 'DDNS' | 'THEME'>('CONTROLS');
   const [mobileDashboardView, setMobileDashboardView] = useState<'VISUAL' | 'CONTROLS'>('VISUAL');
   const lastReorderTime = useRef<number>(0);
   const ddnsLoaded = useRef<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem('esp32_nodes', JSON.stringify(nodes));
+  }, [nodes]);
   
   // Simulated logs buffer
   const [logs, setLogs] = useState<SerialLog[]>([
@@ -428,6 +441,13 @@ export default function AdminDashboard() {
 
         {/* Dynamic network indicators */}
         <div className="flex items-center gap-3.5">
+          <Link 
+            to="/" 
+            className="flex items-center gap-1.5 text-[9.5px] font-bold text-slate-400 hover:text-white uppercase tracking-wider font-mono cursor-pointer py-1.5 px-3 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-xl transition-all"
+          >
+            <Home className="w-3.5 h-3.5 text-accent-500" />
+            Página Inicial
+          </Link>
 
           <div className="hidden sm:flex items-center gap-2 glass-panel border border-white/5 py-1.5 px-3.5 rounded-2xl font-mono text-[9.5px] select-none text-slate-400">
             <Radio className="w-3.5 h-3.5 text-slate-500" />
