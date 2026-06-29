@@ -13,7 +13,7 @@
 #include <time.h>
 #include <ESPmDNS.h>
 
-#define FIRMWARE_VERSION "v1.0.2"
+#define FIRMWARE_VERSION "v1.0.3"
 
 // Default network credentials
 const char* DEFAULT_WIFI_SSID = "";
