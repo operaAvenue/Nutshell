@@ -13,7 +13,7 @@
 #include <time.h>
 #include <ESPmDNS.h>
 
-#define FIRMWARE_VERSION "v1.0.3"
+#define FIRMWARE_VERSION "v1.0.4"
 
 // Default network credentials
 const char* DEFAULT_WIFI_SSID = "";
@@ -224,8 +224,8 @@ String getSlug(String name) {
 String getPinStateTopic(int gpio) {
   for (auto& p : pins) {
     if (p.gpio == gpio) {
-      String nameSlug = getSlug(p.name);
-      String pinId = (nameSlug != "") ? nameSlug : ("gpio" + String(gpio));
+      String nameSlug = getSlug(p.customLabel);
+      String pinId = (nameSlug != "") ? (nameSlug + "_" + String(gpio)) : ("gpio" + String(gpio));
       return "openagro/" + deviceHostname + "/" + pinId + "/state";
     }
   }
@@ -237,8 +237,8 @@ void publishAutoDiscovery() {
   for (auto& p : pins) {
     JsonDocument doc;
     String component = "";
-    String nameSlug = getSlug(p.name);
-    String pinId = (nameSlug != "") ? nameSlug : ("gpio" + String(p.gpio));
+    String nameSlug = getSlug(p.customLabel);
+    String pinId = (nameSlug != "") ? (nameSlug + "_" + String(p.gpio)) : ("gpio" + String(p.gpio));
     String topicPrefix = "openagro/" + deviceHostname + "/" + pinId;
     String discoveryTopic = "";
 
@@ -247,8 +247,8 @@ void publishAutoDiscovery() {
     dev["name"] = "openAgro - " + deviceHostname;
     dev["manufacturer"] = "openAgro";
 
-    doc["name"] = p.name != "" ? p.name : ("Pin " + String(p.gpio));
-    doc["unique_id"] = macStr + "_" + pinId;
+    doc["name"] = p.customLabel != "" ? p.customLabel : ("Pin " + String(p.gpio));
+    doc["unique_id"] = macStr + "_gpio" + String(p.gpio);
 
     if (p.mode == "DIGITAL_OUTPUT") {
       component = "switch";
@@ -271,7 +271,7 @@ void publishAutoDiscovery() {
     }
 
     if (component != "") {
-      discoveryTopic = "homeassistant/" + component + "/openagro_" + macStr + "/" + pinId + "/config";
+      discoveryTopic = "homeassistant/" + component + "/openagro_" + macStr + "/gpio" + String(p.gpio) + "/config";
       String payload;
       serializeJson(doc, payload);
       mqttClient.publish(discoveryTopic.c_str(), payload.c_str(), true);
@@ -300,8 +300,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     String pinId = topicStr.substring(pinIdStart, pinIdEnd);
     
     for (auto& p : pins) {
-      String nameSlug = getSlug(p.name);
-      String currentPinId = (nameSlug != "") ? nameSlug : ("gpio" + String(p.gpio));
+      String nameSlug = getSlug(p.customLabel);
+      String currentPinId = (nameSlug != "") ? (nameSlug + "_" + String(p.gpio)) : ("gpio" + String(p.gpio));
       if (currentPinId == pinId) {
         if (p.mode == "DIGITAL_OUTPUT") {
           int valueNum = (msg == "ON") ? 1 : 0;
